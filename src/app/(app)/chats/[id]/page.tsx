@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/useChatStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { NbInput } from '@/components/ui/NbInput';
 import { NbSkeleton } from '@/components/ui/NbSkeleton';
 import { cn } from '@/lib/nb';
@@ -14,22 +14,72 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
   const chatId = resolvedParams.id;
   const router = useRouter();
   
-  const { conversations, messages, sendMessage, markRead } = useChatStore();
+  const { 
+    conversations, 
+    messages, 
+    sendMessage, 
+    markRead, 
+    subscribeToMessages, 
+    setActiveConversation,
+    subscribeToTypingIndicators,
+    typingIndicators,
+    setTyping
+  } = useChatStore();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   
-  const currentUserId = user?.id || 'me'; 
+  const currentUserId = user?.id || ''; 
   
   const conversation = conversations.find(c => c.id === chatId);
   const chatMessages = messages[chatId] || [];
+  const activeTyping = typingIndicators[chatId] || [];
   
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>(null);
+
+  // Subscribe to messages, typing indicators and set active conversation
+  useEffect(() => {
+    if (!chatId) return;
+    
+    setActiveConversation(chatId);
+    const unsubMessages = subscribeToMessages(chatId);
+    const unsubTyping = subscribeToTypingIndicators(chatId);
+    
+    return () => {
+      unsubMessages();
+      unsubTyping();
+      setActiveConversation(null);
+    };
+  }, [chatId, subscribeToMessages, setActiveConversation, subscribeToTypingIndicators]);
+
+  // Handle typing status
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputText(e.target.value);
+    
+    if (chatId) {
+      setTyping(chatId, true);
+      
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      
+      typingTimeoutRef.current = setTimeout(() => {
+        setTyping(chatId, false);
+      }, 3000);
+    }
+  };
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1000);
+    // Artificial delay to wait for initial messages to load
+    const timer = setTimeout(() => setIsLoading(false), 600);
     return () => clearTimeout(timer);
   }, []);
+
+  // Mark as read
+  useEffect(() => {
+    if (!chatId || chatMessages.length === 0) return;
+    const unreadMessages = chatMessages.filter(m => !m.read && m.senderId !== currentUserId);
+    unreadMessages.forEach(m => markRead(chatId, m.id));
+  }, [chatMessages, chatId, currentUserId, markRead]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -46,12 +96,14 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
     
-    sendMessage(chatId, {
-      text: inputText,
-      senderId: currentUserId,
-    });
-    
+    const text = inputText.trim();
     setInputText('');
+    
+    // Stop typing immediately
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    setTyping(chatId, false);
+
+    sendMessage(chatId, text);
   };
 
   const formatTime = (ts: number) => {
@@ -99,53 +151,71 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
             </div>
           ))
         ) : chatMessages.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <span className="font-bold text-nb-black/50 uppercase tracking-widest text-sm bg-black/5 px-4 py-2 border-2 border-nb-black/10">No messages yet</span>
+          <div className="flex-1 flex flex-col items-center justify-center opacity-40">
+            <div className="w-16 h-16 border-[3px] border-nb-black bg-white mb-4 flex items-center justify-center rotate-3">
+               <Send className="w-8 h-8" />
+            </div>
+            <p className="font-black uppercase tracking-widest text-sm text-center">No messages yet<br/><span className="text-[10px] font-bold">Start the conversation!</span></p>
           </div>
         ) : (
-          chatMessages.map((msg) => {
-            const isMe = msg.senderId === currentUserId;
-            
-            if (isMe) {
+          <div className="flex flex-col gap-6">
+            {chatMessages.map((msg, idx) => {
+              const isMe = msg.senderId === currentUserId;
+              const prevMsg = chatMessages[idx - 1];
+              const msgDate = new Date(msg.createdAt).toLocaleDateString();
+              const prevMsgDate = prevMsg ? new Date(prevMsg.createdAt).toLocaleDateString() : null;
+              const showDateDivider = msgDate !== prevMsgDate;
+              
               return (
-                <div key={msg.id} className="flex flex-col items-end w-full">
-                  <div className="flex gap-2 items-start justify-end w-full max-w-[85%]">
-                    <div className="bg-nb-coral text-nb-black border-[3px] border-nb-black px-5 py-3 shadow-[4px_4px_0px_var(--nb-black)]">
-                      <p className="font-bold text-[16px] leading-snug break-words">{msg.text}</p>
+                <div key={msg.id} className="flex flex-col gap-6">
+                  {showDateDivider && (
+                    <div className="flex items-center justify-center my-4">
+                      <div className="h-[2px] flex-1 bg-nb-black/10" />
+                      <span className="px-4 py-1 border-2 border-nb-black/20 text-[10px] font-black uppercase tracking-[0.2em] bg-white/50 text-nb-black/60">
+                        {new Date(msg.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <div className="h-[2px] flex-1 bg-nb-black/10" />
                     </div>
-                    {/* Square dashed-border avatar right */}
-                    <div className="shrink-0 mt-[10px]">
-                      <div className="w-[22px] h-[22px] bg-white border-[1.5px] border-nb-black border-dashed flex items-center justify-center p-[2px]">
-                         <div className="w-full h-full bg-nb-black" />
+                  )}
+                  <div className={cn("flex flex-col w-full animate-in fade-in slide-in-from-bottom-2 duration-300", isMe ? "items-end" : "items-start")}>
+                    <div className={cn("flex gap-2 items-start w-full max-w-[85%]", isMe ? "justify-end" : "justify-start")}>
+                      {!isMe && (
+                        <div className="shrink-0 mt-[10px]">
+                          <div className="w-[18px] h-[18px] border-[1.5px] border-nb-black bg-nb-blue shadow-[2px_2px_0_var(--nb-black)]" />
+                        </div>
+                      )}
+                      <div className={cn(
+                        "border-[3px] border-nb-black px-5 py-3 transition-transform",
+                        isMe 
+                          ? "bg-nb-coral text-nb-black shadow-[4px_4px_0_var(--nb-black)]" 
+                          : "bg-[#2563FF] text-white shadow-[-4px_4px_0_var(--nb-black)]"
+                      )}>
+                        <p className="font-bold text-[16px] leading-snug break-words">{msg.text}</p>
                       </div>
                     </div>
-                  </div>
-                  {/* Timestamp below */}
-                  <span className="text-[11px] font-black text-nb-black/60 uppercase tracking-wider mt-2 mr-9">
-                    {formatTime(msg.createdAt)}
-                  </span>
-                </div>
-              );
-            } else {
-              return (
-                <div key={msg.id} className="flex flex-col items-start w-full">
-                  <div className="flex flex-col items-start w-full max-w-[85%]">
-                    {/* Contact name label above */}
-                    <span className="font-black text-[12px] uppercase tracking-widest text-nb-black mb-1.5 ml-1">
-                      {conversation?.name}
+                    <span className={cn(
+                      "text-[10px] font-black text-nb-black/50 uppercase tracking-widest mt-2",
+                      isMe ? "margin-right-[4px]" : "margin-left-[26px]"
+                    )}>
+                      {formatTime(msg.createdAt)}
                     </span>
-                    <div className="bg-[#2563FF] text-white border-[3px] border-nb-black px-5 py-3 shadow-[-4px_4px_0px_var(--nb-black)]">
-                      <p className="font-bold text-[16px] leading-snug break-words">{msg.text}</p>
-                    </div>
                   </div>
-                  {/* Timestamp below */}
-                  <span className="text-[11px] font-black text-nb-black/60 uppercase tracking-wider mt-2 ml-1">
-                    {formatTime(msg.createdAt)}
-                  </span>
                 </div>
               );
-            }
-          })
+            })}
+          </div>
+        )}
+        
+        {/* Typing Area */}
+        {activeTyping.length > 0 && activeTyping[0] !== currentUserId && (
+          <div className="flex items-center gap-2 animate-in fade-in duration-300">
+            <div className="flex gap-1">
+              <div className="w-2 h-2 bg-nb-black animate-bounce duration-700" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-nb-black animate-bounce duration-700" style={{ animationDelay: '200ms' }} />
+              <div className="w-2 h-2 bg-nb-black animate-bounce duration-700" style={{ animationDelay: '400ms' }} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-tighter">Someone is typing...</span>
+          </div>
         )}
         <div ref={messagesEndRef} className="h-1" />
       </main>
@@ -157,7 +227,7 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
             <NbInput
               type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={handleInputChange}
               placeholder="Type a message..."
               className="w-full !border-[3px] !border-nb-black text-[16px] font-bold py-4 focus:!ring-nb-coral"
             />

@@ -16,7 +16,6 @@ interface User {
   name: string;
   email?: string;
   avatar?: string;
-  isAnonymous?: boolean;
 }
 
 interface AuthState {
@@ -28,7 +27,6 @@ interface AuthState {
   // Auth actions
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
-  guestLogin: () => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 
@@ -40,10 +38,9 @@ interface AuthState {
 // Convert Firebase user to our User type
 const formatUser = (firebaseUser: FirebaseUser): User => ({
   id: firebaseUser.uid,
-  name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Guest User',
+  name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
   email: firebaseUser.email || undefined,
-  avatar: firebaseUser.photoURL || undefined,
-  isAnonymous: firebaseUser.isAnonymous
+  avatar: firebaseUser.photoURL || undefined
 });
 
 // Lazy import to avoid circular dependency: useAuthStore <-> useUserStore
@@ -105,23 +102,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      guestLogin: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          const result = await signInAnonymously(auth);
-          const user = formatUser(result.user);
-          set({ user, isLoggedIn: true, isLoading: false });
-          // Sync guest profile too — guests can still be messaged
-          await syncUserProfile();
-        } catch (error: any) {
-          set({
-            error: error.message || 'Guest login failed',
-            isLoading: false
-          });
-          throw error;
-        }
-      },
-
       logout: async () => {
         set({ isLoading: true });
         try {
@@ -153,12 +133,15 @@ export const initAuthListener = () => {
   setLoading(true);
 
   onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
+    if (firebaseUser && !firebaseUser.isAnonymous) {
       setUser(formatUser(firebaseUser));
       // Sync on every session restore — keeps lastActive fresh
       // and ensures searchKeywords exist for pre-existing users
       await syncUserProfile();
     } else {
+      if (firebaseUser?.isAnonymous) {
+        await firebaseSignOut(auth);
+      }
       setUser(null);
     }
   });

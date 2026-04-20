@@ -48,7 +48,7 @@ export const NbSidebar = ({ isOpen, onClose }: NbSidebarProps) => {
         <div className="flex flex-col h-full bg-nb-card">
           {/* Header */}
           <div className="p-6 border-b-[3px] border-nb-black flex items-center justify-between">
-            <h2 className="font-black text-2xl uppercase tracking-tighter">Neo Chat</h2>
+            <h2 className="font-black text-2xl uppercase tracking-tighter">CONVO</h2>
             <button
               onClick={onClose}
               className="md:hidden w-10 h-10 border-2 border-nb-black flex items-center justify-center bg-white shadow-[2px_2px_0_var(--nb-black)] transition-all hover:shadow-[4px_4px_0_var(--nb-black)] hover:-translate-x-[1px] hover:-translate-y-[1px] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"

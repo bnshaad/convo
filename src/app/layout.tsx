@@ -10,8 +10,8 @@ import { ChatInitializer } from "@/components/chat/ChatInitializer";
 const font = Space_Grotesk({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"] });
 
 export const metadata: Metadata = {
-  title: "Neobrutalism Chat",
-  description: "A production-grade Neobrutalist chat application.",
+  title: "CONVO",
+  description: "A fun innovation in real-time communication.",
 };
 
 export default function RootLayout({

@@ -23,7 +23,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           >
             <Menu className="w-7 h-7" strokeWidth={3} />
           </button>
-          <span className="ml-4 font-black text-xl uppercase tracking-tight">Neo Chat</span>
+          <span className="ml-4 font-black text-xl uppercase tracking-tight">CONVO</span>
         </header>
 
         {children}
