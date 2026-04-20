@@ -6,7 +6,7 @@ import { useUserStore, UserProfile } from '@/store/useUserStore';
 import { useChatStore } from '@/store/useChatStore';
 import { NbCard } from '@/components/ui/NbCard';
 import { NbButton } from '@/components/ui/NbButton';
-import { Search as SearchIcon, User, MessageCircle, Loader2 } from 'lucide-react';
+import { Search as SearchIcon, User, MessageCircle, RefreshCw } from 'lucide-react';
 
 interface UserSearchProps {
   onSelect?: (userId: string) => void;
@@ -64,7 +64,7 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
       <div className="relative group">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-nb-black group-focus-within:text-nb-blue transition-colors">
           {isSearching ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <RefreshCw className="w-5 h-5 animate-spin" />
           ) : (
             <SearchIcon className="w-5 h-5" strokeWidth={3} />
           )}
