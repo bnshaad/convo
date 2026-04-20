@@ -8,20 +8,24 @@ import { NbButton } from '@/components/ui/NbButton';
 import { NbInput } from '@/components/ui/NbInput';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState('');
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { login, error: authError, clearError } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) return;
+    setLocalError('');
+    clearError();
+
+    if (!email.trim() || !password.trim()) return;
 
     try {
-      await login(username, password);
+      await login(email, password);
       router.push('/chats');
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (err: any) {
+      setLocalError(err.message || 'Login failed. Please check your credentials.');
     }
   };
 
@@ -40,17 +44,21 @@ export default function LoginPage() {
         
         {/* Main Card */}
         <div className="bg-white border-[3px] border-nb-black p-10 flex flex-col">
-          <h1 className="font-black text-[22px] uppercase tracking-[0.1em] text-nb-black mb-8 text-center">
-            Login to Account
-          </h1>
+          {/* Error Message */}
+          {(localError || authError) && (
+            <div className="mb-6 p-3 border-[2px] border-nb-coral bg-nb-coral/10 text-nb-coral text-[13px] font-black uppercase tracking-wide">
+              {localError || authError}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-bold uppercase tracking-wide text-nb-black">Username</label>
+              <label className="text-sm font-bold uppercase tracking-wide text-nb-black">Email</label>
               <NbInput 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username" 
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email Address" 
                 required 
               />
             </div>
