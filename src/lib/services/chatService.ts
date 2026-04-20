@@ -273,5 +273,19 @@ export const chatService = {
       });
       callback(notifications);
     });
+  },
+
+  clearNotifications: async (userId: string) => {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      where('read', '==', false)
+    );
+    const snapshot = await getDocs(q);
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, { read: true });
+    });
+    await batch.commit();
   }
 };

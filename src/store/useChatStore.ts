@@ -26,6 +26,7 @@ interface ChatState {
   createConversation: (participants: string[], name: string, avatar?: string) => Promise<string>;
   setTyping: (conversationId: string, isTyping: boolean) => Promise<void>;
   markRead: (conversationId: string) => Promise<void>;
+  clearNotifications: () => Promise<void>;
   startConversation: (userId: string, userName: string) => Promise<string>;
 
   // Subscriptions
@@ -125,6 +126,16 @@ export const useChatStore = create<ChatState>()(
         await chatService.markMessagesAsRead(conversationId, user.id);
       } catch (error: any) {
         console.error('Error marking as read:', error);
+      }
+    },
+
+    clearNotifications: async () => {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
+      try {
+        await chatService.clearNotifications(user.id);
+      } catch (error: any) {
+        console.error('Error clearing notifications:', error);
       }
     },
 
