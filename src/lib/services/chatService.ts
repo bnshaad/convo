@@ -170,10 +170,10 @@ export const chatService = {
     const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
     const messageSnap = await getDoc(messageRef);
     if (!messageSnap.exists()) return;
-    
+
     const data = messageSnap.data();
     const reactions = data.reactions || {};
-    
+
     // Standardize: one reaction per user per message
     Object.keys(reactions).forEach(key => {
       if (reactions[key]?.includes(userId)) {
@@ -183,7 +183,7 @@ export const chatService = {
 
     if (!reactions[emoji]) reactions[emoji] = [];
     reactions[emoji].push(userId);
-    
+
     await updateDoc(messageRef, { reactions });
   },
 
@@ -191,14 +191,14 @@ export const chatService = {
     const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
     const messageSnap = await getDoc(messageRef);
     if (!messageSnap.exists()) return;
-    
+
     const data = messageSnap.data();
     const reactions = data.reactions || {};
-    
+
     if (reactions[emoji]) {
       reactions[emoji] = reactions[emoji].filter((id: string) => id !== userId);
     }
-    
+
     await updateDoc(messageRef, { reactions });
   },
 
@@ -210,7 +210,7 @@ export const chatService = {
         timestamp: serverTimestamp()
       });
     } else {
-      await deleteDoc(typingRef).catch(() => {});
+      await deleteDoc(typingRef).catch(() => { });
     }
   },
 
@@ -224,8 +224,7 @@ export const chatService = {
         .map(data => data.userId);
       callback(typingUserIds);
     });
-  }
-};
+  },
 
   // --- Notifications ---
 
