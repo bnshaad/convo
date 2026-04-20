@@ -1,26 +1,60 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --nb-yellow: #FFE135;
+  --nb-coral: #FF4B3E;
+  --nb-blue: #2563FF;
+  --nb-mint: #00C86A;
+  --nb-purple: #7C3AED;
+  --nb-orange: #FF7A00;
+  --nb-black: #0D0D0D;
+  --nb-cream: #FFF8F0;
+  --nb-card: #FFFFFF;
+  
+  --nb-border: 3px solid var(--nb-black);
+  --nb-shadow: 5px 5px 0px var(--nb-black);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  --nb-black: #F8F8F8;   /* Off-white for text/borders */
+  --nb-cream: #0D0D0D;   /* Deep black for background */
+  --nb-card: #1A1A1A;    /* Dark gray for cards for subtle separation */
+  
+  /* Adjusted accents for better dark mode visibility */
+  --nb-blue: #3B82F6;
+  --nb-coral: #FF5E53;
+  --nb-yellow: #FFD700;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-nb-yellow: var(--nb-yellow);
+  --color-nb-coral: var(--nb-coral);
+  --color-nb-blue: var(--nb-blue);
+  --color-nb-mint: var(--nb-mint);
+  --color-nb-purple: var(--nb-purple);
+  --color-nb-orange: var(--nb-orange);
+  --color-nb-black: var(--nb-black);
+  --color-nb-cream: var(--nb-cream);
+  --color-nb-card: var(--nb-card);
+  
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  border-radius: 0 !important;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--nb-cream);
+  color: var(--nb-black);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 800;
+}
+
+/* Button typography strictly uppercase */
+button {
+  text-transform: uppercase;
 }
