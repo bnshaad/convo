@@ -13,6 +13,11 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
   const resolvedParams = use(params);
   const chatId = resolvedParams.id;
   const router = useRouter();
+
+  // Diagnostic log for debugging navigation
+  useEffect(() => {
+    console.log('[ChatRoom] Navigating to:', chatId);
+  }, [chatId]);
   
   const { 
     conversations, 
@@ -130,10 +135,39 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
     return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  if (!conversation && !isLoading) {
+  if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-nb-cream items-center justify-center p-4">
-        <h2 className="font-black text-2xl uppercase mb-4">Chat Not Found</h2>
+      <div className="flex flex-col h-screen bg-nb-cream">
+        <header className="p-4 border-b-[3px] border-nb-black flex items-center gap-4 bg-nb-cream">
+          <button onClick={() => router.back()} className="p-2 border-[3px] border-nb-black shadow-[3px_3px_0px_var(--nb-black)] active:translate-y-[2px] active:shadow-none">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <NbSkeleton className="h-6 w-32" />
+        </header>
+        <div className="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
+          <NbSkeleton className="h-16 w-3/4 self-start" />
+          <NbSkeleton className="h-12 w-1/2 self-end" />
+          <NbSkeleton className="h-20 w-2/3 self-start" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!conversation) {
+    return (
+      <div className="flex flex-col h-screen bg-nb-cream items-center justify-center p-8 text-center">
+        <div className="bg-nb-coral border-[3px] border-nb-black shadow-[6px_6px_0px_#0D0D0D] p-8 max-w-sm">
+          <h2 className="font-black text-2xl text-white uppercase mb-4 tracking-wider">Conversation Not Found</h2>
+          <p className="font-bold text-white/90 mb-6 uppercase text-sm">
+            This chat doesn&apos;t exist or you don&apos;t have access to it.
+          </p>
+          <button 
+            onClick={() => router.push('/chats')}
+            className="w-full bg-nb-black text-white font-black py-4 uppercase tracking-widest hover:bg-nb-yellow hover:text-nb-black transition-colors"
+          >
+            Back to Chats
+          </button>
+        </div>
       </div>
     );
   }
