@@ -24,6 +24,7 @@ interface ChatState {
   removeReaction: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
   createConversation: (participants: string[], name: string, avatar?: string) => Promise<string>;
   setTyping: (conversationId: string, isTyping: boolean) => Promise<void>;
+  markRead: (conversationId: string) => Promise<void>;
   startConversation: (userId: string, userName: string) => Promise<string>;
 
   // Subscriptions
@@ -113,6 +114,16 @@ export const useChatStore = create<ChatState>()(
       const user = useAuthStore.getState().user;
       if (!user) return;
       await chatService.setTyping(conversationId, user.id, isTyping);
+    },
+
+    markRead: async (conversationId) => {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
+      try {
+        await chatService.markMessagesAsRead(conversationId, user.id);
+      } catch (error: any) {
+        console.error('Error marking as read:', error);
+      }
     },
 
     startConversation: async (targetUserId, targetUserName) => {

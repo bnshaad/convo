@@ -77,8 +77,10 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
   // Mark as read
   useEffect(() => {
     if (!chatId || chatMessages.length === 0) return;
-    const unreadMessages = chatMessages.filter(m => !m.read && m.senderId !== currentUserId);
-    unreadMessages.forEach(m => markRead(chatId, m.id));
+    const hasUnread = chatMessages.some(m => !m.read && m.senderId !== currentUserId);
+    if (hasUnread) {
+      markRead(chatId);
+    }
   }, [chatMessages, chatId, currentUserId, markRead]);
 
   useEffect(() => {

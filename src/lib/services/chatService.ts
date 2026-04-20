@@ -105,6 +105,27 @@ export const chatService = {
     }, onError);
   },
 
+  markMessagesAsRead: async (conversationId: string, userId: string) => {
+    const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+    const q = query(messagesRef, where('read', '==', false));
+    const snapshot = await getDocs(q);
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((snap) => {
+      if (snap.data().senderId !== userId) {
+        batch.update(snap.ref, { read: true });
+      }
+    });
+
+    // Also reset unread count for this user
+    const conversationRef = doc(db, 'conversations', conversationId);
+    batch.update(conversationRef, {
+      [`unreadCount.${userId}`]: 0
+    });
+
+    await batch.commit();
+  },
+
   sendMessage: async (conversationId: string, senderId: string, senderName: string, text: string, participantIds: string[], imageUrl?: string): Promise<void> => {
     const messagesRef = collection(db, 'conversations', conversationId, 'messages');
     const conversationRef = doc(db, 'conversations', conversationId);
