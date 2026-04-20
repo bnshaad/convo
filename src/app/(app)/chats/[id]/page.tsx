@@ -89,10 +89,6 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
     }
   }, [chatMessages, isLoading]);
 
-  useEffect(() => {
-    const unreadMessages = chatMessages.filter(m => !m.read && m.senderId !== currentUserId);
-    unreadMessages.forEach(m => markRead(chatId, m.id));
-  }, [chatMessages, chatId, currentUserId, markRead]);
 
   const handleSend = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
