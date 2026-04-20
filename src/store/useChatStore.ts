@@ -4,41 +4,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { chatService } from '@/lib/services/chatService';
 import { useAuthStore } from './useAuthStore';
-
-// Types
-export interface Message {
-  id: string;
-  text: string;
-  senderId: string;
-  createdAt: number;
-  read: boolean;
-  imageUrl?: string;
-  reactions?: Record<string, string[]>;
-  editedAt?: number;
-  replyTo?: string;
-}
-
-export interface Conversation {
-  id: string;
-  name: string;
-  participantIds: string[];
-  unreadCount: number;
-  lastMessage?: string;
-  timestamp?: string;
-  avatar?: string;
-  updatedAt: number;
-}
-
-export interface Notification {
-  id: string;
-  type: 'message' | 'system' | 'like';
-  senderName?: string;
-  message: string;
-  timestamp: string;
-  createdAt: number;
-  userId: string;
-  read: boolean;
-}
+import { Message, Conversation, Notification } from '@/types/chat';
 
 interface ChatState {
   conversations: Conversation[];

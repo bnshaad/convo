@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useChatStore, Conversation, Message } from '@/store/useChatStore';
-import { useUserStore, UserProfile } from '@/store/useUserStore';
+import { useChatStore } from '@/store/useChatStore';
+import { Conversation, Message } from '@/types/chat';
+import { useUserStore } from '@/store/useUserStore';
+import { UserProfile } from '@/types/user';
 import { useAuthStore } from '@/store/useAuthStore';
 import { NbCard } from '@/components/ui/NbCard';
 import { NbButton } from '@/components/ui/NbButton';

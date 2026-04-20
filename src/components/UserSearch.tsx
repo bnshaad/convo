@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUserStore, UserProfile } from '@/store/useUserStore';
+import { useUserStore } from '@/store/useUserStore';
+import { UserProfile } from '@/types/user';
 import { useChatStore } from '@/store/useChatStore';
 import { NbCard } from '@/components/ui/NbCard';
 import { NbButton } from '@/components/ui/NbButton';

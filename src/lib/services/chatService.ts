@@ -18,10 +18,13 @@ import {
   increment,
   Timestamp,
   DocumentData,
-  QuerySnapshot
+  QuerySnapshot,
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Conversation, Message, Notification } from '@/store/useChatStore';
+import { UserProfile } from '@/types/user';
+import { Conversation, Message, Notification } from '@/types/chat';
 
 /**
  * Service to handle all Firestore chat operations.

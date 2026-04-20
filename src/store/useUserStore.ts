@@ -4,16 +4,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { userService } from '@/lib/services/userService';
 import { useAuthStore } from './useAuthStore';
-
-export interface UserProfile {
-  id: string;
-  name: string;
-  email?: string;
-  avatar?: string;
-  status?: string;
-  lastActive?: number;
-  createdAt?: number;
-}
+import { UserProfile } from '@/types/user';
 
 interface UserState {
   currentUserProfile: UserProfile | null;

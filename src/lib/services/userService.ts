@@ -15,7 +15,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { UserProfile } from '@/store/useUserStore';
+import { UserProfile } from '@/types/user';
 
 /**
  * Service to handle all User and Profile operations.
