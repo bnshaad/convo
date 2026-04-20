@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useChatStore } from '@/store/useChatStore';
 import { MediaItem } from '@/types/chat';
-import { ArrowLeft, X, ChevronLeft, ChevronRight, Play, Check } from 'lucide-react';
+import { ArrowLeft, X, ChevronLeft, ChevronRight, Play, Check, MessageSquare } from 'lucide-react';
 import { NbButton } from '@/components/ui/NbButton';
 import { NbCard } from '@/components/ui/NbCard';
 import { NbSkeleton } from '@/components/ui/NbSkeleton';
@@ -167,6 +167,14 @@ export default function MediaPage() {
             No {activeTab.toLowerCase()} found
           </div>
         )}
+        
+        {/* Navigation Info */}
+        <div className="mt-8 px-4 py-6 border-[3px] border-nb-black bg-white shadow-[4px_4px_0_var(--nb-black)]">
+           <h3 className="font-black text-[14px] uppercase tracking-wider mb-2">Tip</h3>
+           <p className="font-medium text-[13px] text-nb-black/60">
+             You can view images, videos, and shared files from all your conversations here.
+           </p>
+        </div>
       </main>
 
       {/* Lightbox Modal */}
@@ -210,6 +218,20 @@ export default function MediaPage() {
                   fill 
                   className="object-contain" 
                 />
+                
+                {/* Jump to Chat Action */}
+                {filteredMedia[lightboxIndex].conversationId && (
+                  <div className="absolute bottom-4 left-0 w-full px-6 flex justify-center">
+                    <NbButton 
+                      variant="primary" 
+                      className="w-full max-w-xs shadow-[4px_4px_0_var(--nb-black)] flex items-center justify-center gap-2"
+                      onClick={() => router.push(`/chats/${filteredMedia[lightboxIndex].conversationId}`)}
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      Go to Chat
+                    </NbButton>
+                  </div>
+                )}
              </NbCard>
           </div>
         </div>

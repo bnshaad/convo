@@ -64,8 +64,9 @@ export const useChatStore = create<ChatState>()(
           conversation.participantIds,
           imageUrl
         );
-      } catch (error: any) {
-        set({ error: error.message });
+      } catch (error) {
+        const err = error as Error;
+        set({ error: err.message });
       }
     },
 
@@ -74,16 +75,18 @@ export const useChatStore = create<ChatState>()(
       if (!user) return;
       try {
         await chatService.editMessage(conversationId, messageId, user.id, newText);
-      } catch (error: any) {
-        set({ error: error.message });
+      } catch (error) {
+        const err = error as Error;
+        set({ error: err.message });
       }
     },
 
     deleteMessage: async (conversationId, messageId) => {
       try {
         await chatService.deleteMessage(conversationId, messageId);
-      } catch (error: any) {
-        set({ error: error.message });
+      } catch (error) {
+        const err = error as Error;
+        set({ error: err.message });
       }
     },
 
@@ -92,8 +95,9 @@ export const useChatStore = create<ChatState>()(
       if (!user) return;
       try {
         await chatService.addReaction(conversationId, messageId, user.id, emoji);
-      } catch (error: any) {
-        set({ error: error.message });
+      } catch (error) {
+        const err = error as Error;
+        set({ error: err.message });
       }
     },
 
@@ -102,8 +106,9 @@ export const useChatStore = create<ChatState>()(
       if (!user) return;
       try {
         await chatService.removeReaction(conversationId, messageId, user.id, emoji);
-      } catch (error: any) {
-        set({ error: error.message });
+      } catch (error) {
+        const err = error as Error;
+        set({ error: err.message });
       }
     },
 
@@ -124,8 +129,8 @@ export const useChatStore = create<ChatState>()(
       if (!user) return;
       try {
         await chatService.markMessagesAsRead(conversationId, user.id);
-      } catch (error: any) {
-        console.error('Error marking as read:', error);
+      } catch (error) {
+        console.error('Error:', error);
       }
     },
 
@@ -134,8 +139,8 @@ export const useChatStore = create<ChatState>()(
       if (!user) return;
       try {
         await chatService.clearNotifications(user.id);
-      } catch (error: any) {
-        console.error('Error clearing notifications:', error);
+      } catch (error) {
+        console.error('Error:', error);
       }
     },
 

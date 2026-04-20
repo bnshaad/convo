@@ -9,7 +9,10 @@ export const TransitionWrapper = ({ children }: { children: ReactNode }) => {
   const [transitionStage, setTransitionStage] = useState('fadeIn');
 
   useEffect(() => {
-    setTransitionStage('fadeOut');
+    // Avoid synchronous setState in effect for better performance/linting
+    requestAnimationFrame(() => {
+      setTransitionStage('fadeOut');
+    });
   }, [pathname]);
 
   useEffect(() => {

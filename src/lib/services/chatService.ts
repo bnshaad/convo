@@ -33,7 +33,7 @@ import { Conversation, Message, Notification } from '@/types/chat';
 export const chatService = {
   // --- Conversations ---
 
-  subscribeToConversations: (userId: string, callback: (conversations: Conversation[]) => void, onError: (error: any) => void) => {
+  subscribeToConversations: (userId: string, callback: (conversations: Conversation[]) => void, onError: (error: Error) => void) => {
     const conversationsRef = collection(db, 'conversations');
     const q = query(
       conversationsRef,
@@ -82,7 +82,7 @@ export const chatService = {
 
   // --- Messages ---
 
-  subscribeToMessages: (conversationId: string, callback: (messages: Message[]) => void, onError: (error: any) => void) => {
+  subscribeToMessages: (conversationId: string, callback: (messages: Message[]) => void, onError: (error: Error) => void) => {
     const messagesRef = collection(db, 'conversations', conversationId, 'messages');
     const q = query(messagesRef, orderBy('createdAt', 'asc'), limit(100));
 
@@ -130,20 +130,20 @@ export const chatService = {
     const messagesRef = collection(db, 'conversations', conversationId, 'messages');
     const conversationRef = doc(db, 'conversations', conversationId);
 
-    const messageData: any = {
+    const messageData = {
       text,
       senderId,
       createdAt: serverTimestamp(),
       read: false,
       reactions: {}
-    };
+    } as Record<string, unknown>;
     if (imageUrl) messageData.imageUrl = imageUrl;
 
     await addDoc(messagesRef, messageData);
 
     // Update conversation and notifications
     const otherParticipants = participantIds.filter(id => id !== senderId);
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       lastMessage: imageUrl ? '📷 Image' : text,
       updatedAt: serverTimestamp()
     };

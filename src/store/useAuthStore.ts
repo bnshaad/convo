@@ -74,9 +74,10 @@ export const useAuthStore = create<AuthState>()(
           set({ user, isLoggedIn: true, isLoading: false });
           // Sync profile to Firestore users collection so this user is discoverable
           await syncUserProfile();
-        } catch (error: any) {
+        } catch (error) {
+          const err = error as Error;
           set({
-            error: error.message || 'Login failed',
+            error: err.message || 'Login failed',
             isLoading: false
           });
           throw error;
@@ -92,9 +93,10 @@ export const useAuthStore = create<AuthState>()(
           set({ user, isLoggedIn: true, isLoading: false });
           // Create profile in Firestore users collection so this user is discoverable
           await syncUserProfile();
-        } catch (error: any) {
+        } catch (error) {
+          const err = error as Error;
           set({
-            error: error.message || 'Registration failed',
+            error: err.message || 'Registration failed',
             isLoading: false
           });
           throw error;
@@ -106,9 +108,10 @@ export const useAuthStore = create<AuthState>()(
         try {
           await firebaseSignOut(auth);
           set({ user: null, isLoggedIn: false, isLoading: false });
-        } catch (error: any) {
+        } catch (error) {
+          const err = error as Error;
           set({
-            error: error.message || 'Logout failed',
+            error: err.message || 'Logout failed',
             isLoading: false
           });
           throw error;

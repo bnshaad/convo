@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useUserStore } from '@/store/useUserStore';
 import { UserProfile } from '@/types/user';
 import { useChatStore } from '@/store/useChatStore';
@@ -90,9 +91,9 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
               className="p-4 flex items-center gap-4 border-[3px] border-nb-black shadow-[4px_4px_0px_#0D0D0D] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_#0D0D0D] transition-all cursor-pointer bg-white"
               onClick={() => handleUserClick(user)}
             >
-              <div className="w-12 h-12 border-2 border-nb-black bg-nb-blue flex items-center justify-center overflow-hidden shrink-0">
+              <div className="w-12 h-12 border-2 border-nb-black bg-nb-blue flex items-center justify-center overflow-hidden shrink-0 relative">
                 {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                  <Image src={user.avatar} alt={user.name} fill className="object-cover" />
                 ) : (
                   <User className="w-8 h-8 text-white" strokeWidth={2.5} />
                 )}

@@ -35,8 +35,10 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
   const activeTyping = typingIndicators[chatId] || [];
   
   const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>(null);
+  const lastTypingSentRef = useRef<number>(0);
 
   // Subscribe to messages, typing indicators and set active conversation
   useEffect(() => {
@@ -50,20 +52,27 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
       unsubMessages();
       unsubTyping();
       setActiveConversation(null);
+      // Cleanup typing status on leave
+      if (chatId) setTyping(chatId, false);
     };
   }, [chatId, subscribeToMessages, setActiveConversation, subscribeToTypingIndicators]);
 
-  // Handle typing status
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
     
     if (chatId) {
-      setTyping(chatId, true);
+      const now = Date.now();
+      // Only send 'typing' status if we haven't sent it in the last 4 seconds
+      if (now - lastTypingSentRef.current > 4000) {
+        setTyping(chatId, true);
+        lastTypingSentRef.current = now;
+      }
       
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       
       typingTimeoutRef.current = setTimeout(() => {
         setTyping(chatId, false);
+        lastTypingSentRef.current = 0; // Reset so next keystroke sends immediately
       }, 3000);
     }
   };
@@ -90,18 +99,31 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
   }, [chatMessages, isLoading]);
 
 
-  const handleSend = (e?: React.FormEvent) => {
+  const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || isSending) return;
     
     const text = inputText.trim();
     setInputText('');
+    setIsSending(true);
     
     // Stop typing immediately
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     setTyping(chatId, false);
 
-    sendMessage(chatId, text);
+    try {
+      await sendMessage(chatId, text);
+    } catch (error) {
+      console.error('Failed to send:', error);
+      // Optional: Restore text on failure
+      setInputText(text);
+    } finally {
+      setIsSending(false);
+      // Extra scroll after send confirm
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   };
 
   const formatTime = (ts: number) => {
@@ -226,16 +248,17 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
               type="text"
               value={inputText}
               onChange={handleInputChange}
-              placeholder="Type a message..."
-              className="w-full !border-[3px] !border-nb-black text-[16px] font-bold py-4 focus:!ring-nb-coral"
+              disabled={isSending}
+              placeholder={isSending ? "Sending..." : "Type a message..."}
+              className="w-full !border-[3px] !border-nb-black text-[16px] font-bold py-4 focus:!ring-nb-coral disabled:opacity-50"
             />
           </div>
           <button 
             type="submit" 
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || isSending}
             className="shrink-0 bg-nb-coral border-[3px] border-nb-black text-white w-14 h-14 flex items-center justify-center transition-all shadow-[4px_4px_0px_var(--nb-black)] hover:shadow-[6px_6px_0px_var(--nb-black)] hover:-translate-y-[2px] active:translate-y-[3px] active:shadow-none disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
           >
-            <Send className="w-6 h-6" strokeWidth={3} />
+            <Send className={cn("w-6 h-6", isSending && "animate-pulse")} strokeWidth={3} />
           </button>
         </form>
       </footer>

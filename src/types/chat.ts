@@ -52,5 +52,6 @@ export interface MediaItem {
   thumbnail?: string;
   extension?: string;
   senderId?: string;
+  conversationId?: string;
   createdAt: number;
 }

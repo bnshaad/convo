@@ -268,7 +268,7 @@ export default function SearchPage() {
             {/* No Results */}
             {!isSearching && results.people.length === 0 && results.messages.length === 0 && foundUsers.length === 0 && (
               <div className="py-20 text-center">
-                 <p className="font-bold text-nb-black/40 uppercase tracking-widest text-lg">No results found for "{debouncedQuery}"</p>
+                 <p className="font-bold text-nb-black/40 uppercase tracking-widest text-lg">No results found for &quot;{debouncedQuery}&quot;</p>
                  <p className="font-bold text-nb-black/30 uppercase tracking-widest text-sm mt-2">Try a different search term</p>
               </div>
             )}

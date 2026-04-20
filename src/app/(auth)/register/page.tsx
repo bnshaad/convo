@@ -22,8 +22,10 @@ export default function RegisterPage() {
   useEffect(() => {
     const prefillUsername = searchParams.get('username');
     if (prefillUsername) {
-      setUsername(prefillUsername);
-      setDisplayName(prefillUsername);
+      requestAnimationFrame(() => {
+        setUsername(prefillUsername);
+        setDisplayName(prefillUsername);
+      });
     }
   }, [searchParams]);
 
@@ -41,8 +43,9 @@ export default function RegisterPage() {
     try {
       await register(email, password, displayName || username);
       router.push('/chats');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err) {
+      const errorStr = (err as Error).message || 'Registration failed';
+      setError(errorStr);
     }
   };
 

@@ -54,8 +54,9 @@ export const useUserStore = create<UserState>()(
             lastActive: Date.now()
           }
         });
-      } catch (error: any) {
-        set({ error: error.message });
+      } catch (error) {
+        const err = error as Error;
+        set({ error: err.message });
       }
     }
   }))

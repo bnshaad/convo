@@ -62,7 +62,6 @@ const slides = [
 export default function OnboardingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const router = useRouter();
-  const { user } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
 
   const activeSlides = slides;
@@ -73,7 +72,9 @@ export default function OnboardingPage() {
     if (hasOnboarded === 'true') {
       router.replace('/chats');
     } else {
-      setIsReady(true);
+      requestAnimationFrame(() => {
+        setIsReady(true);
+      });
     }
   }, [router]);
 

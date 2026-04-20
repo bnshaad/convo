@@ -12,27 +12,29 @@ import { useAuthStore } from '@/store/useAuthStore';
 export function usePresence() {
   const { user, isLoggedIn } = useAuthStore();
 
-  const setOnline = useCallback(async () => {
-    if (!user?.id) return;
+  const userId = user?.id;
 
-    const presenceRef = doc(db, 'presence', user.id);
+  const setOnline = useCallback(async () => {
+    if (!userId) return;
+
+    const presenceRef = doc(db, 'presence', userId);
     await setDoc(presenceRef, {
       online: true,
       lastSeen: serverTimestamp(),
-      userId: user.id
+      userId: userId
     }, { merge: true });
-  }, [user?.id]);
+  }, [userId]);
 
   const setOffline = useCallback(async () => {
-    if (!user?.id) return;
+    if (!userId) return;
 
-    const presenceRef = doc(db, 'presence', user.id);
+    const presenceRef = doc(db, 'presence', userId);
     await setDoc(presenceRef, {
       online: false,
       lastSeen: serverTimestamp(),
-      userId: user.id
+      userId: userId
     }, { merge: true });
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
     if (!isLoggedIn || !user?.id) return;
@@ -64,5 +66,5 @@ export function usePresence() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       setOffline();
     };
-  }, [isLoggedIn, user?.id, setOnline, setOffline]);
+  }, [isLoggedIn, userId, setOnline, setOffline]);
 }

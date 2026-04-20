@@ -24,8 +24,9 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push('/chats');
-    } catch (err: any) {
-      setLocalError(err.message || 'Login failed. Please check your credentials.');
+    } catch (err) {
+      const errorStr = (err as Error).message || 'Login failed. Please check your credentials.';
+      setLocalError(errorStr);
     }
   };
 
@@ -88,7 +89,7 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-12 text-center">
-        <span className="font-bold text-nb-black/70 mr-2">Don't have an account?</span>
+        <span className="font-bold text-nb-black/70 mr-2">Don&apos;t have an account?</span>
         <Link 
           href="/register" 
           className="font-black uppercase text-nb-black underline decoration-[3px] underline-offset-4 hover:bg-nb-yellow transition-colors"

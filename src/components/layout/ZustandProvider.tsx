@@ -9,7 +9,9 @@ export const ZustandProvider = ({ children }: { children: ReactNode }) => {
 
   // Handle hydration
   useEffect(() => {
-    setIsHydrated(true);
+    requestAnimationFrame(() => {
+      setIsHydrated(true);
+    });
   }, []);
 
   // Handle theme synchronization
