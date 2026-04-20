@@ -66,7 +66,6 @@ export const useUserStore = create<UserState>()(
         const q = query(
           usersRef,
           where('searchKeywords', 'array-contains', searchLower),
-          orderBy('lastActive', 'desc'),
           limit(20)
         );
 
