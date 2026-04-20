@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useChatStore, MediaItem } from '@/store/useChatStore';
+import { useChatStore } from '@/store/useChatStore';
+import { MediaItem } from '@/types/chat';
 import { ArrowLeft, X, ChevronLeft, ChevronRight, Play, Check } from 'lucide-react';
 import { NbButton } from '@/components/ui/NbButton';
 import { NbCard } from '@/components/ui/NbCard';

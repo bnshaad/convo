@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { chatService } from '@/lib/services/chatService';
 import { useAuthStore } from './useAuthStore';
-import { Message, Conversation, Notification } from '@/types/chat';
+import { Message, Conversation, Notification, MediaItem } from '@/types/chat';
 
 interface ChatState {
   conversations: Conversation[];
@@ -12,6 +12,7 @@ interface ChatState {
   messages: Record<string, Message[]>;
   notifications: Notification[];
   typingIndicators: Record<string, string[]>;
+  media: MediaItem[];
   isLoading: boolean;
   error: string | null;
 
@@ -41,6 +42,7 @@ export const useChatStore = create<ChatState>()(
     messages: {},
     notifications: [],
     typingIndicators: {},
+    media: [],
     isLoading: false,
     error: null,
 

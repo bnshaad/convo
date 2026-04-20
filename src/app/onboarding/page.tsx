@@ -65,9 +65,7 @@ export default function OnboardingPage() {
   const { user } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
 
-  // Check if user is a guest
-  const isGuest = user?.id?.startsWith('guest-');
-  const activeSlides = isGuest ? [slides[0]] : slides;
+  const activeSlides = slides;
 
   useEffect(() => {
     // Check if user has already onboarded

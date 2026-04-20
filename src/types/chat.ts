@@ -44,3 +44,13 @@ export interface UserPresence {
   online: boolean;
   lastSeen?: number;
 }
+
+export interface MediaItem {
+  id: string;
+  url: string;
+  type: 'image' | 'video' | 'file';
+  thumbnail?: string;
+  extension?: string;
+  senderId?: string;
+  createdAt: number;
+}

@@ -15,7 +15,6 @@ export default function ChatsPage() {
   const [showBanner, setShowBanner] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isGuest = user?.id?.startsWith('guest-');
 
   // Simulate loading for the skeleton demo
   useEffect(() => {
@@ -46,26 +45,6 @@ export default function ChatsPage() {
 
       {/* Conversation List Scrollable */}
       <main className="flex-1 overflow-y-auto px-4 pb-8 flex flex-col gap-4">
-        {/* Guest Banner */}
-        {isGuest && showBanner && !isLoading && (
-          <div className="mt-4 bg-nb-yellow border-[3px] border-nb-black shadow-[4px_4px_0px_var(--nb-black)] p-4 relative flex flex-col gap-2 transition-all duration-300">
-            <button
-              onClick={() => setShowBanner(false)}
-              className="absolute top-2 right-2 w-7 h-7 bg-white border-[2.5px] border-nb-black flex items-center justify-center shadow-[2px_2px_0_var(--nb-black)] transition-all hover:bg-nb-black hover:text-white hover:shadow-[3px_3px_0_var(--nb-black)] hover:-translate-x-[1px] hover:-translate-y-[1px] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-            >
-              <X className="w-4 h-4" strokeWidth={4} />
-            </button>
-            <p className="font-bold text-[14px] leading-tight pr-8">
-              You&apos;re chatting as a Guest — your messages won&apos;t be saved after you close the tab.
-            </p>
-            <Link 
-              href="/register" 
-              className="font-black text-[13px] uppercase underline decoration-2 underline-offset-2 hover:text-nb-coral transition-colors w-fit"
-            >
-              Sign up to save your history
-            </Link>
-          </div>
-        )}
 
         {isLoading ? (
           // Skeleton Loader

@@ -4,7 +4,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  signInAnonymously,
   updateProfile,
   onAuthStateChanged,
   User as FirebaseUser
