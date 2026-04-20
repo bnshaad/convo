@@ -202,7 +202,6 @@ export default function SearchPage() {
                       </div>
                       <NbButton
                         variant="primary"
-                        size="sm"
                         onClick={() => handleStartChat(userProfile.id, userProfile.name)}
                         className="shrink-0"
                       >

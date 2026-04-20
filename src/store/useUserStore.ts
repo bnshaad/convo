@@ -161,7 +161,16 @@ export const useUserStore = create<UserState>()(
           });
         }
 
-        set({ currentUserProfile: { id: currentUser.id, ...profileData } as UserProfile });
+        // Fix TypeScript error by creating a compatible object for local state
+        const localProfile: UserProfile = {
+          id: currentUser.id,
+          name: currentUser.name,
+          email: currentUser.email || undefined,
+          avatar: currentUser.avatar || undefined,
+          lastActive: Date.now()
+        };
+
+        set({ currentUserProfile: localProfile });
       } catch (error) {
         console.error('Error creating/updating profile:', error);
       }

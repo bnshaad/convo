@@ -104,7 +104,6 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
               </div>
               <NbButton
                 variant="primary"
-                size="sm"
                 className="shrink-0"
               >
                 <MessageCircle className="w-4 h-4" strokeWidth={3} />
