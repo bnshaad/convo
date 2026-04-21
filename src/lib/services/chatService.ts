@@ -31,6 +31,12 @@ const isUser = (value: unknown): value is User => {
   return typeof candidate.id === 'string' && typeof candidate.name === 'string';
 };
 
+const toFirestoreParticipant = (participant: Participant): Participant => ({
+  id: participant.id,
+  name: participant.name,
+  ...(participant.avatar ? { avatar: participant.avatar } : {})
+});
+
 const mapConversation = (id: string, data: DocumentData, userId: string): Chat => {
   const users = Array.isArray(data.participants)
     ? data.participants.filter(isUser)
@@ -95,7 +101,7 @@ export const chatService = {
   ): Promise<string> => {
     const participantMap = new Map<string, Participant>();
     [creator, ...participants].forEach((participant) => {
-      participantMap.set(participant.id, participant);
+      participantMap.set(participant.id, toFirestoreParticipant(participant));
     });
 
     const allParticipants = Array.from(participantMap.values());
