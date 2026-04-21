@@ -37,6 +37,17 @@ const toFirestoreParticipant = (participant: Participant): Participant => ({
   ...(participant.avatar ? { avatar: participant.avatar } : {})
 });
 
+const sanitizeChatName = (name: string | undefined, participants: Participant[]) => {
+  const trimmed = name?.trim();
+  if (trimmed) return trimmed;
+
+  const fallbackNames = participants
+    .map((participant) => participant.name?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return fallbackNames.join(', ') || 'New Chat';
+};
+
 const mapConversation = (id: string, data: DocumentData, userId: string): Chat => {
   const users = Array.isArray(data.participants)
     ? data.participants.filter(isUser)
@@ -111,17 +122,19 @@ export const chatService = {
   ): Promise<string> => {
     const participantMap = new Map<string, Participant>();
     [creator, ...participants].forEach((participant) => {
+      if (!participant?.id || !participant?.name) return;
       participantMap.set(participant.id, toFirestoreParticipant(participant));
     });
 
     const allParticipants = Array.from(participantMap.values());
+    const safeName = sanitizeChatName(name, allParticipants);
     const unreadCount: Record<string, number> = {};
     allParticipants.forEach(({ id }) => {
       unreadCount[id] = 0;
     });
 
     const docRef = await addDoc(collection(db, 'conversations'), {
-      name,
+      name: safeName,
       participantIds: allParticipants.map(({ id }) => id),
       participants: allParticipants,
       unreadCount,
