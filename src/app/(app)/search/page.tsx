@@ -17,7 +17,7 @@ import { getChatDisplayName } from '@/lib/chat';
 type FilterType = 'All' | 'Users' | 'People' | 'Messages';
 
 export default function SearchPage() {
-  const { chats, messagesByChatId, startConversation, errorByScope, clearChatError } = useChatStore();
+  const { chats, messagesByChatId, startConversation, errorByScope, clearChatError, isCreatingChat } = useChatStore();
   const { searchUsers, error: userError, isLoading: isUserStoreLoading, clearError } = useUserStore();
   const { user } = useAuthStore();
   const router = useRouter();
@@ -215,6 +215,7 @@ export default function SearchPage() {
                         variant="primary"
                         onClick={() => handleStartChat(userProfile.id, userProfile.name)}
                         className="shrink-0"
+                        disabled={isCreatingChat}
                       >
                         <MessageCircle className="w-4 h-4" strokeWidth={3} />
                       </NbButton>
@@ -283,10 +284,12 @@ export default function SearchPage() {
             )}
 
             {/* Searching Indicator */}
-            {(isSearching || isUserStoreLoading) && (
+            {(isSearching || isUserStoreLoading || isCreatingChat) && (
               <div className="py-12 text-center">
                 <div className="inline-block w-8 h-8 border-4 border-nb-black border-t-transparent animate-spin"></div>
-                <p className="font-bold text-nb-black/60 uppercase tracking-widest text-sm mt-4">Searching users...</p>
+                <p className="font-bold text-nb-black/60 uppercase tracking-widest text-sm mt-4">
+                  {isCreatingChat ? 'Creating chat...' : 'Searching users...'}
+                </p>
               </div>
             )}
 

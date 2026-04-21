@@ -8,7 +8,7 @@ import { NbSkeleton } from '@/components/ui/NbSkeleton';
 import { getChatDisplayName } from '@/lib/chat';
 
 export default function ChatsPage() {
-  const { chats, isChatsLoading, errorByScope, clearChatError } = useChatStore();
+  const { chats, isChatsLoading, errorByScope, clearChatError, isCreatingChat } = useChatStore();
   const { user } = useAuthStore();
   const router = useRouter();
 
@@ -31,6 +31,14 @@ export default function ChatsPage() {
             className="w-full bg-nb-card border-[3px] border-nb-black shadow-[4px_4px_0px_var(--nb-black)] py-3.5 pl-11 pr-4 text-nb-black font-bold text-[16px] outline-none placeholder:text-nb-black/80 focus:ring-0"
           />
         </div>
+        <button
+          type="button"
+          onClick={() => router.push('/search')}
+          disabled={isCreatingChat}
+          className="w-full bg-nb-blue text-white border-[3px] border-nb-black shadow-[4px_4px_0px_var(--nb-black)] py-3 font-black uppercase tracking-widest disabled:opacity-60 disabled:shadow-none"
+        >
+          {isCreatingChat ? 'Creating Chat...' : 'New Chat'}
+        </button>
       </header>
 
       {/* Conversation List Scrollable */}

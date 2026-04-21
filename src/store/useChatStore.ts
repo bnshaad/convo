@@ -19,6 +19,8 @@ interface ChatState {
   isChatsLoading: boolean;
   isMessagesLoadingByChatId: Record<string, boolean>;
   isSendingByChatId: Record<string, boolean>;
+  isDeletingByChatId: Record<string, boolean>;
+  isCreatingChat: boolean;
   isNotificationsLoading: boolean;
   isClearingNotifications: boolean;
   errorByScope: Record<ChatErrorScope, string | null>;
@@ -32,6 +34,8 @@ interface ChatState {
   addReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
   removeReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
   createConversation: (participants: User[], name: string, avatar?: string) => Promise<string>;
+  createNewChat: (participants: User[], name: string, avatar?: string) => Promise<string>;
+  deleteChat: (chatId: string) => Promise<void>;
   markRead: (chatId: string) => Promise<void>;
   clearNotifications: () => Promise<void>;
   startConversation: (userId: string, userName: string) => Promise<string>;
@@ -81,6 +85,8 @@ export const useChatStore = create<ChatState>()(
     isChatsLoading: false,
     isMessagesLoadingByChatId: {},
     isSendingByChatId: {},
+    isDeletingByChatId: {},
+    isCreatingChat: false,
     isNotificationsLoading: false,
     isClearingNotifications: false,
     errorByScope: EMPTY_ERRORS,
@@ -262,6 +268,7 @@ export const useChatStore = create<ChatState>()(
 
       try {
         set((state) => ({
+          isCreatingChat: true,
           errorByScope: { ...state.errorByScope, chats: null }
         }));
         return await chatService.createConversation(participants, name, user, avatar);
@@ -269,6 +276,62 @@ export const useChatStore = create<ChatState>()(
         const err = error as Error;
         set((state) => ({
           errorByScope: { ...state.errorByScope, chats: err.message || 'Failed to create chat.' }
+        }));
+        throw error;
+      } finally {
+        set({ isCreatingChat: false });
+      }
+    },
+
+    createNewChat: async (participants, name, avatar) => get().createConversation(participants, name, avatar),
+
+    deleteChat: async (chatId) => {
+      const isActiveChat = get().activeChatId === chatId;
+
+      set((state) => ({
+        isDeletingByChatId: { ...state.isDeletingByChatId, [chatId]: true },
+        errorByScope: { ...state.errorByScope, chats: null, messages: null }
+      }));
+
+      try {
+        if (isActiveChat) {
+          get().closeActiveChat();
+        }
+
+        await chatService.deleteConversation(chatId);
+
+        set((state) => {
+          const nextMessagesByChatId = { ...state.messagesByChatId };
+          delete nextMessagesByChatId[chatId];
+
+          const nextTypingByChatId = { ...state.typingByChatId };
+          delete nextTypingByChatId[chatId];
+
+          const nextLoadingByChatId = { ...state.isMessagesLoadingByChatId };
+          delete nextLoadingByChatId[chatId];
+
+          const nextSendingByChatId = { ...state.isSendingByChatId };
+          delete nextSendingByChatId[chatId];
+
+          const nextDeletingByChatId = { ...state.isDeletingByChatId };
+          delete nextDeletingByChatId[chatId];
+
+          return {
+            chats: state.chats.filter((chat) => chat.id !== chatId),
+            activeChatId: state.activeChatId === chatId ? null : state.activeChatId,
+            messagesByChatId: nextMessagesByChatId,
+            typingByChatId: nextTypingByChatId,
+            isMessagesLoadingByChatId: nextLoadingByChatId,
+            isSendingByChatId: nextSendingByChatId,
+            isDeletingByChatId: nextDeletingByChatId,
+            notifications: state.notifications.filter((notification) => notification.conversationId !== chatId)
+          };
+        });
+      } catch (error) {
+        const err = error as Error;
+        set((state) => ({
+          isDeletingByChatId: { ...state.isDeletingByChatId, [chatId]: false },
+          errorByScope: { ...state.errorByScope, chats: err.message || 'Failed to delete chat.' }
         }));
         throw error;
       }

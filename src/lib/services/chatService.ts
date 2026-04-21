@@ -73,6 +73,16 @@ const mapMessage = (id: string, chatId: string, data: DocumentData): Message => 
   replyTo: data.replyTo
 });
 
+const deleteCollectionDocs = async (docs: Array<{ ref: ReturnType<typeof doc> }>) => {
+  for (let index = 0; index < docs.length; index += 450) {
+    const batch = writeBatch(db);
+    docs.slice(index, index + 450).forEach((snapshot) => {
+      batch.delete(snapshot.ref);
+    });
+    await batch.commit();
+  }
+};
+
 /**
  * Service to handle all Firestore chat operations.
  * Separates Firebase SDK logic from state management.
@@ -121,6 +131,24 @@ export const chatService = {
     });
 
     return docRef.id;
+  },
+
+  deleteConversation: async (conversationId: string) => {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+    const typingRef = collection(db, 'conversations', conversationId, 'typing');
+    const notificationsRef = collection(db, 'notifications');
+
+    const [messagesSnapshot, typingSnapshot, notificationsSnapshot] = await Promise.all([
+      getDocs(messagesRef),
+      getDocs(typingRef),
+      getDocs(query(notificationsRef, where('conversationId', '==', conversationId)))
+    ]);
+
+    await deleteCollectionDocs(messagesSnapshot.docs);
+    await deleteCollectionDocs(typingSnapshot.docs);
+    await deleteCollectionDocs(notificationsSnapshot.docs);
+    await deleteDoc(conversationRef);
   },
 
   // --- Messages ---

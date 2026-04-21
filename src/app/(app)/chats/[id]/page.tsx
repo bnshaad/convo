@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/useChatStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Trash2 } from 'lucide-react';
 import { NbInput } from '@/components/ui/NbInput';
 import { NbSkeleton } from '@/components/ui/NbSkeleton';
 import { cn } from '@/lib/nb';
@@ -30,6 +30,8 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
     stopTyping,
     isMessagesLoadingByChatId,
     isSendingByChatId,
+    isDeletingByChatId,
+    deleteChat,
     errorByScope,
     clearChatError
   } = useChatStore();
@@ -43,6 +45,7 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
   const activeTyping = (typingByChatId[chatId] || []).filter((userId) => userId !== currentUserId);
   const isMessagesLoading = isMessagesLoadingByChatId[chatId] ?? true;
   const isSending = isSendingByChatId[chatId] ?? false;
+  const isDeleting = isDeletingByChatId[chatId] ?? false;
   
   const [inputText, setInputText] = useState('');
   const messagesContainerRef = useRef<HTMLElement>(null);
@@ -101,6 +104,20 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
       await sendMessage(chatId, text);
     } catch {
       setInputText(text);
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!chatId || isDeleting) return;
+
+    const confirmed = window.confirm('Delete this chat and all its messages? This cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      await deleteChat(chatId);
+      router.replace('/chats');
+    } catch {
+      // store-backed error banner handles the failure
     }
   };
 
@@ -166,6 +183,14 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
             </h1>
           )}
         </div>
+        <button
+          type="button"
+          onClick={handleDeleteChat}
+          disabled={isDeleting}
+          className="absolute right-4 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 border-2 border-white/30 transition-all disabled:opacity-50 md:right-auto md:relative md:ml-4"
+        >
+          <Trash2 className="text-white w-5 h-5" strokeWidth={3} />
+        </button>
       </header>
 
       {/* Messages */}
@@ -178,14 +203,15 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
         }}
         className="flex-1 overflow-y-auto px-4 pt-20 md:pt-6 pb-40 md:pb-24 flex flex-col gap-6"
       >
-        {(errorByScope.messages || errorByScope.send) && (
+        {(errorByScope.messages || errorByScope.send || errorByScope.chats) && (
           <div className="bg-nb-coral/15 border-[3px] border-nb-coral p-4 flex items-center justify-between gap-3">
             <p className="font-bold uppercase text-sm tracking-wide text-nb-coral">
-              {errorByScope.send || errorByScope.messages}
+              {errorByScope.chats || errorByScope.send || errorByScope.messages}
             </p>
             <button
               type="button"
               onClick={() => {
+                clearChatError('chats');
                 clearChatError('messages');
                 clearChatError('send');
               }}
@@ -281,14 +307,14 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
               type="text"
               value={inputText}
               onChange={handleInputChange}
-              disabled={isSending}
-              placeholder={isSending ? "Sending..." : "Type a message..."}
+              disabled={isSending || isDeleting}
+              placeholder={isDeleting ? "Deleting chat..." : isSending ? "Sending..." : "Type a message..."}
               className="w-full !border-[3px] !border-nb-black text-[16px] font-bold py-4 focus:!ring-nb-coral disabled:opacity-50"
             />
           </div>
           <button 
             type="submit" 
-            disabled={!inputText.trim() || isSending}
+            disabled={!inputText.trim() || isSending || isDeleting}
             className="shrink-0 bg-nb-coral border-[3px] border-nb-black text-white w-14 h-14 flex items-center justify-center transition-all shadow-[4px_4px_0px_var(--nb-black)] hover:shadow-[6px_6px_0px_var(--nb-black)] hover:-translate-y-[2px] active:translate-y-[3px] active:shadow-none disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
           >
             <Send className={cn("w-6 h-6", isSending && "animate-pulse")} strokeWidth={3} />

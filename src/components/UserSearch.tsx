@@ -19,7 +19,7 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserProfile[]>([]);
   const { searchUsers, error: userError, isLoading, clearError } = useUserStore();
-  const { startConversation, errorByScope, clearChatError } = useChatStore();
+  const { startConversation, errorByScope, clearChatError, isCreatingChat } = useChatStore();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -117,6 +117,7 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
               <NbButton
                 variant="primary"
                 className="shrink-0"
+                disabled={isCreatingChat}
               >
                 <MessageCircle className="w-4 h-4" strokeWidth={3} />
               </NbButton>
@@ -128,7 +129,7 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
           </div>
         ) : !query.trim() ? (
           <div className="p-8 text-center opacity-30 select-none">
-            <p className="font-medium">Type to search for people to chat with</p>
+            <p className="font-medium">{isCreatingChat ? 'Creating chat...' : 'Type to search for people to chat with'}</p>
           </div>
         ) : null}
       </div>
