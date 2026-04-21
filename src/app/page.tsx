@@ -3,13 +3,11 @@
 import { NbButton } from "@/components/ui/NbButton";
 import { NbInput } from "@/components/ui/NbInput";
 import { NbCard } from "@/components/ui/NbCard";
-import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function Home() {
   const router = useRouter();
-  const { login } = useAuthStore();
   const [username, setUsername] = useState("");
 
 

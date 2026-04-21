@@ -4,143 +4,308 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { chatService } from '@/lib/services/chatService';
 import { useAuthStore } from './useAuthStore';
-import { Message, Conversation, Notification, MediaItem } from '@/types/chat';
+import { Chat, Message, Notification, MediaItem } from '@/types/chat';
+import { User } from '@/types/user';
+
+type ChatErrorScope = 'chats' | 'messages' | 'send' | 'notifications' | 'users';
 
 interface ChatState {
-  conversations: Conversation[];
-  activeConversationId: string | null;
-  messages: Record<string, Message[]>;
+  chats: Chat[];
+  activeChatId: string | null;
+  messagesByChatId: Record<string, Message[]>;
   notifications: Notification[];
-  typingIndicators: Record<string, string[]>;
+  typingByChatId: Record<string, string[]>;
   media: MediaItem[];
-  isLoading: boolean;
-  error: string | null;
+  isChatsLoading: boolean;
+  isMessagesLoadingByChatId: Record<string, boolean>;
+  isSendingByChatId: Record<string, boolean>;
+  isNotificationsLoading: boolean;
+  isClearingNotifications: boolean;
+  errorByScope: Record<ChatErrorScope, string | null>;
 
-  // Actions
-  setActiveConversation: (id: string | null) => void;
-  sendMessage: (conversationId: string, text: string, imageUrl?: string) => Promise<void>;
-  editMessage: (conversationId: string, messageId: string, newText: string) => Promise<void>;
-  deleteMessage: (conversationId: string, messageId: string) => Promise<void>;
-  addReaction: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
-  removeReaction: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
-  createConversation: (participants: string[], name: string, avatar?: string) => Promise<string>;
-  setTyping: (conversationId: string, isTyping: boolean) => Promise<void>;
-  markRead: (conversationId: string) => Promise<void>;
+  setActiveChat: (id: string | null) => void;
+  openChat: (chatId: string) => void;
+  closeActiveChat: () => void;
+  sendMessage: (chatId: string, text: string, imageUrl?: string) => Promise<void>;
+  editMessage: (chatId: string, messageId: string, newText: string) => Promise<void>;
+  deleteMessage: (chatId: string, messageId: string) => Promise<void>;
+  addReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
+  removeReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
+  createConversation: (participants: User[], name: string, avatar?: string) => Promise<string>;
+  markRead: (chatId: string) => Promise<void>;
   clearNotifications: () => Promise<void>;
   startConversation: (userId: string, userName: string) => Promise<string>;
+  queueTypingActivity: (chatId: string) => void;
+  stopTyping: (chatId: string) => Promise<void>;
+  clearChatError: (scope: ChatErrorScope) => void;
+  clearNotificationsError: () => void;
 
-  // Subscriptions
-  subscribeToConversations: (userId: string) => () => void;
-  subscribeToMessages: (conversationId: string) => () => void;
+  subscribeToChats: (userId: string) => () => void;
   subscribeToNotifications: (userId: string) => () => void;
-  subscribeToTypingIndicators: (conversationId: string) => () => void;
 }
+
+const EMPTY_ERRORS: Record<ChatErrorScope, string | null> = {
+  chats: null,
+  messages: null,
+  send: null,
+  notifications: null,
+  users: null
+};
+
+let activeMessageUnsubscribe: (() => void) | null = null;
+let activeTypingUnsubscribe: (() => void) | null = null;
+const typingDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const typingIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const typingPublished = new Map<string, boolean>();
+
+const clearTypingTimers = (chatId: string) => {
+  const debounceTimer = typingDebounceTimers.get(chatId);
+  if (debounceTimer) clearTimeout(debounceTimer);
+  typingDebounceTimers.delete(chatId);
+
+  const idleTimer = typingIdleTimers.get(chatId);
+  if (idleTimer) clearTimeout(idleTimer);
+  typingIdleTimers.delete(chatId);
+};
+
+const getUserIds = (chat: Chat) => chat.users.map((user) => user.id);
 
 export const useChatStore = create<ChatState>()(
   subscribeWithSelector((set, get) => ({
-    conversations: [],
-    activeConversationId: null,
-    messages: {},
+    chats: [],
+    activeChatId: null,
+    messagesByChatId: {},
     notifications: [],
-    typingIndicators: {},
+    typingByChatId: {},
     media: [],
-    isLoading: false,
-    error: null,
+    isChatsLoading: false,
+    isMessagesLoadingByChatId: {},
+    isSendingByChatId: {},
+    isNotificationsLoading: false,
+    isClearingNotifications: false,
+    errorByScope: EMPTY_ERRORS,
 
-    setActiveConversation: (id) => set({ activeConversationId: id }),
+    setActiveChat: (id) => set({ activeChatId: id }),
 
-    sendMessage: async (conversationId, text, imageUrl) => {
+    openChat: (chatId) => {
+      const currentActiveChatId = get().activeChatId;
+      if (currentActiveChatId === chatId) return;
+
+      if (activeMessageUnsubscribe) {
+        activeMessageUnsubscribe();
+        activeMessageUnsubscribe = null;
+      }
+      if (activeTypingUnsubscribe) {
+        activeTypingUnsubscribe();
+        activeTypingUnsubscribe = null;
+      }
+      if (currentActiveChatId) {
+        void get().stopTyping(currentActiveChatId);
+      }
+
+      set((state) => ({
+        activeChatId: chatId,
+        messagesByChatId: state.messagesByChatId[chatId]
+          ? state.messagesByChatId
+          : { ...state.messagesByChatId, [chatId]: [] },
+        typingByChatId: { ...state.typingByChatId, [chatId]: [] },
+        isMessagesLoadingByChatId: { ...state.isMessagesLoadingByChatId, [chatId]: true },
+        errorByScope: { ...state.errorByScope, messages: null }
+      }));
+
+      activeMessageUnsubscribe = chatService.subscribeToMessages(
+        chatId,
+        (messages) => {
+          set((state) => ({
+            messagesByChatId: { ...state.messagesByChatId, [chatId]: messages },
+            isMessagesLoadingByChatId: { ...state.isMessagesLoadingByChatId, [chatId]: false },
+            errorByScope: { ...state.errorByScope, messages: null }
+          }));
+
+          const currentUserId = useAuthStore.getState().user?.id;
+          if (!currentUserId) return;
+
+          const hasUnread = messages.some((message) => !message.read && message.senderId !== currentUserId);
+          if (get().activeChatId === chatId && hasUnread) {
+            void get().markRead(chatId);
+          }
+        },
+        (error) =>
+          set((state) => ({
+            isMessagesLoadingByChatId: { ...state.isMessagesLoadingByChatId, [chatId]: false },
+            errorByScope: { ...state.errorByScope, messages: error.message }
+          }))
+      );
+
+      activeTypingUnsubscribe = chatService.subscribeToTyping(chatId, (userIds) => {
+        set((state) => ({
+          typingByChatId: { ...state.typingByChatId, [chatId]: userIds }
+        }));
+      });
+    },
+
+    closeActiveChat: () => {
+      const activeChatId = get().activeChatId;
+      if (activeMessageUnsubscribe) {
+        activeMessageUnsubscribe();
+        activeMessageUnsubscribe = null;
+      }
+      if (activeTypingUnsubscribe) {
+        activeTypingUnsubscribe();
+        activeTypingUnsubscribe = null;
+      }
+      if (activeChatId) {
+        void get().stopTyping(activeChatId);
+      }
+
+      set({ activeChatId: null });
+    },
+
+    sendMessage: async (chatId, text, imageUrl) => {
       const user = useAuthStore.getState().user;
-      if (!user) return;
-      const conversation = get().conversations.find(c => c.id === conversationId);
-      if (!conversation) return;
+      if (!user) {
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, send: 'You must be logged in to send messages.' }
+        }));
+        return;
+      }
+
+      const trimmedText = text.trim();
+      if (!trimmedText && !imageUrl) return;
+      if (get().isSendingByChatId[chatId]) return;
+
+      const chat = get().chats.find((item) => item.id === chatId);
+      if (!chat) {
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, send: 'Chat not found.' }
+        }));
+        return;
+      }
+
+      set((state) => ({
+        isSendingByChatId: { ...state.isSendingByChatId, [chatId]: true },
+        errorByScope: { ...state.errorByScope, send: null }
+      }));
 
       try {
-        await chatService.sendMessage(
-          conversationId,
-          user.id,
-          user.name,
-          text,
-          conversation.participantIds,
-          imageUrl
-        );
+        await chatService.sendMessage(chatId, user.id, user.name, trimmedText, getUserIds(chat), imageUrl);
+        await get().stopTyping(chatId);
       } catch (error) {
         const err = error as Error;
-        set({ error: err.message });
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, send: err.message || 'Failed to send message.' }
+        }));
+        throw error;
+      } finally {
+        set((state) => ({
+          isSendingByChatId: { ...state.isSendingByChatId, [chatId]: false }
+        }));
       }
     },
 
-    editMessage: async (conversationId, messageId, newText) => {
+    editMessage: async (chatId, messageId, newText) => {
       const user = useAuthStore.getState().user;
       if (!user) return;
+
       try {
-        await chatService.editMessage(conversationId, messageId, user.id, newText);
+        await chatService.editMessage(chatId, messageId, user.id, newText.trim());
       } catch (error) {
         const err = error as Error;
-        set({ error: err.message });
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, messages: err.message }
+        }));
       }
     },
 
-    deleteMessage: async (conversationId, messageId) => {
+    deleteMessage: async (chatId, messageId) => {
       try {
-        await chatService.deleteMessage(conversationId, messageId);
+        await chatService.deleteMessage(chatId, messageId);
       } catch (error) {
         const err = error as Error;
-        set({ error: err.message });
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, messages: err.message }
+        }));
       }
     },
 
-    addReaction: async (conversationId, messageId, emoji) => {
+    addReaction: async (chatId, messageId, emoji) => {
       const user = useAuthStore.getState().user;
       if (!user) return;
+
       try {
-        await chatService.addReaction(conversationId, messageId, user.id, emoji);
+        await chatService.addReaction(chatId, messageId, user.id, emoji);
       } catch (error) {
         const err = error as Error;
-        set({ error: err.message });
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, messages: err.message }
+        }));
       }
     },
 
-    removeReaction: async (conversationId, messageId, emoji) => {
+    removeReaction: async (chatId, messageId, emoji) => {
       const user = useAuthStore.getState().user;
       if (!user) return;
+
       try {
-        await chatService.removeReaction(conversationId, messageId, user.id, emoji);
+        await chatService.removeReaction(chatId, messageId, user.id, emoji);
       } catch (error) {
         const err = error as Error;
-        set({ error: err.message });
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, messages: err.message }
+        }));
       }
     },
 
     createConversation: async (participants, name, avatar) => {
       const user = useAuthStore.getState().user;
       if (!user) throw new Error('Not authenticated');
-      return await chatService.createConversation(participants, name, user.id, avatar);
-    },
 
-    setTyping: async (conversationId, isTyping) => {
-      const user = useAuthStore.getState().user;
-      if (!user) return;
-      await chatService.setTyping(conversationId, user.id, isTyping);
-    },
-
-    markRead: async (conversationId) => {
-      const user = useAuthStore.getState().user;
-      if (!user) return;
       try {
-        await chatService.markMessagesAsRead(conversationId, user.id);
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, chats: null }
+        }));
+        return await chatService.createConversation(participants, name, user, avatar);
       } catch (error) {
-        console.error('Error:', error);
+        const err = error as Error;
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, chats: err.message || 'Failed to create chat.' }
+        }));
+        throw error;
+      }
+    },
+
+    markRead: async (chatId) => {
+      const user = useAuthStore.getState().user;
+      if (!user || get().activeChatId !== chatId) return;
+
+      try {
+        await chatService.markMessagesAsRead(chatId, user.id);
+      } catch (error) {
+        const err = error as Error;
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, messages: err.message }
+        }));
       }
     },
 
     clearNotifications: async () => {
       const user = useAuthStore.getState().user;
       if (!user) return;
+
+      set((state) => ({
+        isClearingNotifications: true,
+        errorByScope: { ...state.errorByScope, notifications: null }
+      }));
+
       try {
         await chatService.clearNotifications(user.id);
       } catch (error) {
-        console.error('Error:', error);
+        const err = error as Error;
+        set((state) => ({
+          errorByScope: { ...state.errorByScope, notifications: err.message || 'Failed to clear notifications.' }
+        }));
+      } finally {
+        set({ isClearingNotifications: false });
       }
     },
 
@@ -148,48 +313,100 @@ export const useChatStore = create<ChatState>()(
       const user = useAuthStore.getState().user;
       if (!user) throw new Error('Not authenticated');
 
-      const existing = get().conversations.find(c => 
-        c.participantIds.includes(targetUserId) && 
-        c.participantIds.includes(user.id) && 
-        c.participantIds.length === 2
+      const existing = get().chats.find((chat) =>
+        chat.users.length === 2 &&
+        chat.users.some((chatUser) => chatUser.id === targetUserId) &&
+        chat.users.some((chatUser) => chatUser.id === user.id)
       );
 
       if (existing) return existing.id;
-      return await get().createConversation([targetUserId], targetUserName);
+      return get().createConversation([{ id: targetUserId, name: targetUserName }], targetUserName);
     },
 
-    subscribeToConversations: (userId) => {
-      set({ isLoading: true });
-      return chatService.subscribeToConversations(
-        userId,
-        (conversations) => set({ conversations, isLoading: false }),
-        (error) => set({ error: error.message, isLoading: false })
+    queueTypingActivity: (chatId) => {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
+
+      const existingDebounce = typingDebounceTimers.get(chatId);
+      if (existingDebounce) clearTimeout(existingDebounce);
+
+      typingDebounceTimers.set(
+        chatId,
+        setTimeout(async () => {
+          if (!typingPublished.get(chatId)) {
+            typingPublished.set(chatId, true);
+            await chatService.setTyping(chatId, user.id, true);
+          }
+        }, 400)
+      );
+
+      const existingIdle = typingIdleTimers.get(chatId);
+      if (existingIdle) clearTimeout(existingIdle);
+
+      typingIdleTimers.set(
+        chatId,
+        setTimeout(() => {
+          void get().stopTyping(chatId);
+        }, 1500)
       );
     },
 
-    subscribeToMessages: (conversationId) => {
-      return chatService.subscribeToMessages(
-        conversationId,
-        (messages) => set((state) => ({
-          messages: { ...state.messages, [conversationId]: messages }
-        })),
-        (error) => console.error('Message sub error:', error)
+    stopTyping: async (chatId) => {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
+
+      clearTypingTimers(chatId);
+      if (!typingPublished.get(chatId)) return;
+
+      typingPublished.set(chatId, false);
+      await chatService.setTyping(chatId, user.id, false);
+    },
+
+    clearChatError: (scope) =>
+      set((state) => ({
+        errorByScope: { ...state.errorByScope, [scope]: null }
+      })),
+
+    clearNotificationsError: () =>
+      set((state) => ({
+        errorByScope: { ...state.errorByScope, notifications: null }
+      })),
+
+    subscribeToChats: (userId) => {
+      set((state) => ({
+        isChatsLoading: true,
+        errorByScope: { ...state.errorByScope, chats: null }
+      }));
+
+      return chatService.subscribeToConversations(
+        userId,
+        (chats) => set({ chats, isChatsLoading: false }),
+        (error) =>
+          set((state) => ({
+            isChatsLoading: false,
+            errorByScope: { ...state.errorByScope, chats: error.message }
+          }))
       );
     },
 
     subscribeToNotifications: (userId) => {
+      set((state) => ({
+        isNotificationsLoading: true,
+        errorByScope: { ...state.errorByScope, notifications: null }
+      }));
+
       return chatService.subscribeToNotifications(
         userId,
-        (notifications) => set({ notifications })
-      );
-    },
-
-    subscribeToTypingIndicators: (conversationId) => {
-      return chatService.subscribeToTyping(
-        conversationId,
-        (userIds) => set((state) => ({
-          typingIndicators: { ...state.typingIndicators, [conversationId]: userIds }
-        }))
+        (notifications) =>
+          set({
+            notifications,
+            isNotificationsLoading: false
+          }),
+        (error) =>
+          set((state) => ({
+            isNotificationsLoading: false,
+            errorByScope: { ...state.errorByScope, notifications: error.message }
+          }))
       );
     }
   }))

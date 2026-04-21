@@ -1,5 +1,8 @@
+import type { User } from '@/types/user';
+
 export interface Message {
   id: string;
+  chatId: string;
   text: string;
   senderId: string;
   createdAt: number;
@@ -10,16 +13,20 @@ export interface Message {
   replyTo?: string;
 }
 
-export interface Conversation {
+export type Participant = User;
+
+export interface Chat {
   id: string;
-  name: string;
-  participantIds: string[];
+  users: User[];
+  name?: string;
   unreadCount: number;
   lastMessage?: string;
   timestamp?: string;
   avatar?: string;
   updatedAt: number;
 }
+
+export type Conversation = Chat;
 
 export interface Notification {
   id: string;

@@ -1,26 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useChatStore } from '@/store/useChatStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Search, X } from 'lucide-react';
-import Link from 'next/link';
+import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { NbSkeleton } from '@/components/ui/NbSkeleton';
+import { getChatDisplayName } from '@/lib/chat';
 
 export default function ChatsPage() {
-  const { conversations } = useChatStore();
+  const { chats, isChatsLoading, errorByScope, clearChatError } = useChatStore();
   const { user } = useAuthStore();
   const router = useRouter();
-  const [showBanner, setShowBanner] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-
-
-  // Simulate loading for the skeleton demo
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-nb-cream text-nb-black relative pb-24 md:pb-8">
@@ -45,8 +35,20 @@ export default function ChatsPage() {
 
       {/* Conversation List Scrollable */}
       <main className="flex-1 overflow-y-auto px-4 pb-8 flex flex-col gap-4">
+        {errorByScope.chats && (
+          <div className="bg-nb-coral/15 border-[3px] border-nb-coral p-4 flex items-center justify-between gap-3">
+            <p className="font-bold uppercase text-sm tracking-wide text-nb-coral">{errorByScope.chats}</p>
+            <button
+              type="button"
+              onClick={() => clearChatError('chats')}
+              className="font-black uppercase text-xs underline underline-offset-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
-        {isLoading ? (
+        {isChatsLoading ? (
           // Skeleton Loader
           Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="w-full bg-nb-card/40 border-[3px] border-nb-black/20 p-[10px] pl-3 flex items-center gap-3">
@@ -57,8 +59,16 @@ export default function ChatsPage() {
               </div>
             </div>
           ))
+        ) : chats.length === 0 ? (
+          <div className="border-[3px] border-nb-black bg-white p-6 text-center shadow-[4px_4px_0_var(--nb-black)]">
+            <p className="font-black uppercase tracking-widest text-sm">No chats yet</p>
+            <p className="font-bold text-sm text-nb-black/60 mt-2">Start a conversation from Search or New Chat.</p>
+          </div>
         ) : (
-          conversations.map((chat) => (
+          chats.map((chat) => {
+            const chatName = getChatDisplayName(chat, user?.id);
+
+            return (
             <button
               key={chat.id}
               onClick={() => router.push(`/chats/${chat.id}`)}
@@ -81,7 +91,7 @@ export default function ChatsPage() {
 
                {/* Chat Content Body */}
                <div className="flex-1 min-w-0 pr-1 pl-1">
-                 <h2 className="font-black text-[16.5px] truncate leading-tight tracking-tight mb-[3px] uppercase">{chat.name}</h2>
+                 <h2 className="font-black text-[16.5px] truncate leading-tight tracking-tight mb-[3px] uppercase">{chatName}</h2>
                  <p className="font-bold text-[13.5px] leading-tight truncate text-nb-black/85">{chat.lastMessage}</p>
                </div>
 
@@ -90,7 +100,8 @@ export default function ChatsPage() {
                  <span className="text-[12px] font-black text-nb-black tracking-tight opacity-60">{chat.timestamp}</span>
                </div>
             </button>
-          ))
+            );
+          })
         )}
       </main>
     </div>

@@ -15,18 +15,30 @@ interface UserState {
   searchUsers: (searchQuery: string) => Promise<UserProfile[]>;
   getUserProfile: (userId: string) => Promise<UserProfile | null>;
   createOrUpdateProfile: () => Promise<void>;
+  clearError: () => void;
 }
 
 export const useUserStore = create<UserState>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set) => ({
     currentUserProfile: null,
     isLoading: false,
     error: null,
 
+    clearError: () => set({ error: null }),
+
     searchUsers: async (searchQuery) => {
       const user = useAuthStore.getState().user;
       if (!user) return [];
-      return await userService.searchUsers(searchQuery, user.id);
+      set({ isLoading: true, error: null });
+      try {
+        return await userService.searchUsers(searchQuery, user.id);
+      } catch (error) {
+        const err = error as Error;
+        set({ error: err.message });
+        return [];
+      } finally {
+        set({ isLoading: false });
+      }
     },
 
     getUserProfile: async (userId) => {
@@ -38,6 +50,7 @@ export const useUserStore = create<UserState>()(
       if (!user) return;
 
       try {
+        set({ isLoading: true, error: null });
         const profileData = await userService.createOrUpdateProfile(
           user.id,
           user.name,
@@ -57,6 +70,8 @@ export const useUserStore = create<UserState>()(
       } catch (error) {
         const err = error as Error;
         set({ error: err.message });
+      } finally {
+        set({ isLoading: false });
       }
     }
   }))

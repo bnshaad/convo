@@ -4,104 +4,89 @@ import { useState, useRef, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/useChatStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { NbInput } from '@/components/ui/NbInput';
 import { NbSkeleton } from '@/components/ui/NbSkeleton';
 import { cn } from '@/lib/nb';
+import { Message } from '@/types/chat';
+import { getChatDisplayName } from '@/lib/chat';
+
+const EMPTY_MESSAGES: Message[] = [];
 
 export default function SingleChatPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const chatId = resolvedParams.id;
   const router = useRouter();
-
-  // Diagnostic log for debugging navigation
-  useEffect(() => {
-    console.log('[ChatRoom] Navigating to:', chatId);
-  }, [chatId]);
   
   const { 
-    conversations, 
-    messages, 
+    chats,
+    activeChatId,
+    messagesByChatId,
     sendMessage, 
-    markRead, 
-    subscribeToMessages, 
-    setActiveConversation,
-    subscribeToTypingIndicators,
-    typingIndicators,
-    setTyping
+    openChat,
+    closeActiveChat,
+    typingByChatId,
+    queueTypingActivity,
+    stopTyping,
+    isMessagesLoadingByChatId,
+    isSendingByChatId,
+    errorByScope,
+    clearChatError
   } = useChatStore();
   const { user } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(true);
   
   const currentUserId = user?.id || ''; 
   
-  const conversation = conversations.find(c => c.id === chatId);
-  const chatMessages = messages[chatId] || [];
-  const activeTyping = typingIndicators[chatId] || [];
+  const chat = chats.find((item) => item.id === chatId);
+  const chatName = chat ? getChatDisplayName(chat, currentUserId) : 'Unnamed Chat';
+  const chatMessages = messagesByChatId[chatId] ?? EMPTY_MESSAGES;
+  const activeTyping = (typingByChatId[chatId] || []).filter((userId) => userId !== currentUserId);
+  const isMessagesLoading = isMessagesLoadingByChatId[chatId] ?? true;
+  const isSending = isSendingByChatId[chatId] ?? false;
   
   const [inputText, setInputText] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const messagesContainerRef = useRef<HTMLElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>(null);
-  const lastTypingSentRef = useRef<number>(0);
+  const previousMessageCountRef = useRef(0);
+  const shouldStickToBottomRef = useRef(true);
 
-  // Subscribe to messages, typing indicators and set active conversation
   useEffect(() => {
     if (!chatId) return;
-    
-    setActiveConversation(chatId);
-    const unsubMessages = subscribeToMessages(chatId);
-    const unsubTyping = subscribeToTypingIndicators(chatId);
-    
+    previousMessageCountRef.current = 0;
+    shouldStickToBottomRef.current = true;
+    openChat(chatId);
+
     return () => {
-      unsubMessages();
-      unsubTyping();
-      setActiveConversation(null);
-      // Cleanup typing status on leave
-      if (chatId) setTyping(chatId, false);
+      closeActiveChat();
     };
-  }, [chatId, subscribeToMessages, setActiveConversation, subscribeToTypingIndicators]);
+  }, [chatId, openChat, closeActiveChat]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
-    
     if (chatId) {
-      const now = Date.now();
-      // Only send 'typing' status if we haven't sent it in the last 4 seconds
-      if (now - lastTypingSentRef.current > 4000) {
-        setTyping(chatId, true);
-        lastTypingSentRef.current = now;
-      }
-      
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      
-      typingTimeoutRef.current = setTimeout(() => {
-        setTyping(chatId, false);
-        lastTypingSentRef.current = 0; // Reset so next keystroke sends immediately
-      }, 3000);
+      clearChatError('send');
+      queueTypingActivity(chatId);
     }
   };
 
   useEffect(() => {
-    // Artificial delay to wait for initial messages to load
-    const timer = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+    const container = messagesContainerRef.current;
+    if (!container) return;
 
-  // Mark as read
-  useEffect(() => {
-    if (!chatId || chatMessages.length === 0) return;
-    const hasUnread = chatMessages.some(m => !m.read && m.senderId !== currentUserId);
-    if (hasUnread) {
-      markRead(chatId);
-    }
-  }, [chatMessages, chatId, currentUserId, markRead]);
+    const previousCount = previousMessageCountRef.current;
+    const currentCount = chatMessages.length;
+    const lastMessage = chatMessages[currentCount - 1];
+    const shouldScroll =
+      previousCount === 0 ||
+      shouldStickToBottomRef.current ||
+      lastMessage?.senderId === currentUserId;
 
-  useEffect(() => {
-    if (!isLoading) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    if (currentCount !== previousCount && shouldScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: previousCount === 0 ? 'auto' : 'smooth' });
     }
-  }, [chatMessages, isLoading]);
+
+    previousMessageCountRef.current = currentCount;
+  }, [chatMessages, currentUserId]);
 
 
   const handleSend = async (e?: React.FormEvent) => {
@@ -110,24 +95,12 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
     
     const text = inputText.trim();
     setInputText('');
-    setIsSending(true);
-    
-    // Stop typing immediately
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    setTyping(chatId, false);
+    await stopTyping(chatId);
 
     try {
       await sendMessage(chatId, text);
-    } catch (error) {
-      console.error('Failed to send:', error);
-      // Optional: Restore text on failure
+    } catch {
       setInputText(text);
-    } finally {
-      setIsSending(false);
-      // Extra scroll after send confirm
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
     }
   };
 
@@ -135,7 +108,7 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
     return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  if (isLoading) {
+  if (!chat && isMessagesLoading) {
     return (
       <div className="flex flex-col h-screen bg-nb-cream">
         <header className="p-4 border-b-[3px] border-nb-black flex items-center gap-4 bg-nb-cream">
@@ -153,7 +126,7 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
     );
   }
 
-  if (!conversation) {
+  if (!chat && !isMessagesLoading) {
     return (
       <div className="flex flex-col h-screen bg-nb-cream items-center justify-center p-8 text-center">
         <div className="bg-nb-coral border-[3px] border-nb-black shadow-[6px_6px_0px_#0D0D0D] p-8 max-w-sm">
@@ -185,19 +158,45 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
         </button>
         
         <div className="w-full text-center pl-10 pr-10">
-          {isLoading ? (
+          {isMessagesLoading && !chat ? (
             <NbSkeleton className="h-6 w-48 mx-auto bg-white/20 border-white/10" />
           ) : (
             <h1 className="font-black text-[18px] text-white uppercase tracking-wide truncate">
-              {conversation?.name}
+              {chatName}
             </h1>
           )}
         </div>
       </header>
 
       {/* Messages */}
-      <main className="flex-1 overflow-y-auto px-4 pt-20 md:pt-6 pb-36 md:pb-24 flex flex-col gap-6">
-        {isLoading ? (
+      <main
+        ref={messagesContainerRef}
+        onScroll={(event) => {
+          const target = event.currentTarget;
+          shouldStickToBottomRef.current =
+            target.scrollHeight - target.scrollTop - target.clientHeight < 120;
+        }}
+        className="flex-1 overflow-y-auto px-4 pt-20 md:pt-6 pb-40 md:pb-24 flex flex-col gap-6"
+      >
+        {(errorByScope.messages || errorByScope.send) && (
+          <div className="bg-nb-coral/15 border-[3px] border-nb-coral p-4 flex items-center justify-between gap-3">
+            <p className="font-bold uppercase text-sm tracking-wide text-nb-coral">
+              {errorByScope.send || errorByScope.messages}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                clearChatError('messages');
+                clearChatError('send');
+              }}
+              className="font-black uppercase text-xs underline underline-offset-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {isMessagesLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className={cn("flex flex-col w-full max-w-[85%]", i % 2 === 0 ? "items-start" : "items-end ml-auto")}>
               <NbSkeleton className="h-16 w-full mb-2" />
@@ -261,7 +260,7 @@ export default function SingleChatPage({ params }: { params: Promise<{ id: strin
         )}
         
         {/* Typing Area */}
-        {activeTyping.length > 0 && activeTyping[0] !== currentUserId && (
+        {activeTyping.length > 0 && activeChatId === chatId && (
           <div className="flex items-center gap-2 animate-in fade-in duration-300">
             <div className="flex gap-1">
               <div className="w-2 h-2 bg-nb-black animate-bounce duration-700" style={{ animationDelay: '0ms' }} />

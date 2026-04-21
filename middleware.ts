@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export function middleware() {
   // Firebase Auth is client-side only, so we handle auth protection
   // in the client components. This middleware is kept for future
   // server-side features if needed.

@@ -37,7 +37,7 @@ export function usePresence() {
   }, [userId]);
 
   useEffect(() => {
-    if (!isLoggedIn || !user?.id) return;
+    if (!isLoggedIn || !userId) return;
 
     // Set online when component mounts
     setOnline();

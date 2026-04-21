@@ -3,20 +3,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/useChatStore';
-import { Conversation, Message } from '@/types/chat';
+import { Chat, Message } from '@/types/chat';
 import { useUserStore } from '@/store/useUserStore';
 import { UserProfile } from '@/types/user';
 import { useAuthStore } from '@/store/useAuthStore';
 import { NbCard } from '@/components/ui/NbCard';
 import { NbButton } from '@/components/ui/NbButton';
-import { Search as SearchIcon, User, MessageSquare, Image as ImageIcon, Layers, MessageCircle } from 'lucide-react';
+import { Search as SearchIcon, User, MessageSquare, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { getChatDisplayName } from '@/lib/chat';
 
 type FilterType = 'All' | 'Users' | 'People' | 'Messages';
 
 export default function SearchPage() {
-  const { conversations, messages, createConversation } = useChatStore();
-  const { searchUsers } = useUserStore();
+  const { chats, messagesByChatId, startConversation, errorByScope, clearChatError } = useChatStore();
+  const { searchUsers, error: userError, isLoading: isUserStoreLoading, clearError } = useUserStore();
   const { user } = useAuthStore();
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -60,18 +62,7 @@ export default function SearchPage() {
     if (!user?.id) return;
 
     try {
-      // Check if conversation already exists with this user
-      const existingConv = conversations.find(c =>
-        c.participantIds.includes(targetUserId) && c.participantIds.length === 2
-      );
-
-      if (existingConv) {
-        router.push(`/chats/${existingConv.id}`);
-        return;
-      }
-
-      // Create new conversation
-      const conversationId = await createConversation([targetUserId], targetUserName);
+      const conversationId = await startConversation(targetUserId, targetUserName);
       router.push(`/chats/${conversationId}`);
     } catch (error) {
       console.error('Error starting chat:', error);
@@ -84,13 +75,13 @@ export default function SearchPage() {
 
     const q = debouncedQuery.toLowerCase();
 
-    const filteredPeople = conversations.filter(c =>
-      c.name.toLowerCase().includes(q)
+    const filteredPeople = chats.filter((chat) =>
+      getChatDisplayName(chat, user?.id).toLowerCase().includes(q)
     );
 
-    const filteredMessages: { msg: Message; conv: Conversation }[] = [];
-    Object.entries(messages).forEach(([convId, msgs]) => {
-      const conv = conversations.find(c => c.id === convId);
+    const filteredMessages: { msg: Message; conv: Chat }[] = [];
+    Object.entries(messagesByChatId).forEach(([convId, msgs]) => {
+      const conv = chats.find(c => c.id === convId);
       if (conv) {
         msgs.forEach(m => {
           if (m.text.toLowerCase().includes(q)) {
@@ -104,7 +95,7 @@ export default function SearchPage() {
       people: filteredPeople,
       messages: filteredMessages
     };
-  }, [debouncedQuery, conversations, messages]);
+  }, [debouncedQuery, chats, messagesByChatId, user?.id]);
 
   const highlightText = (text: string, highlight: string) => {
     if (!highlight.trim()) return text;
@@ -164,6 +155,22 @@ export default function SearchPage() {
 
       {/* Results Section */}
       <main className="flex-1 px-6 py-4">
+        {(userError || errorByScope.chats) && (
+          <div className="max-w-2xl mx-auto mb-6 bg-nb-coral/15 border-[3px] border-nb-coral p-4 flex items-center justify-between gap-3">
+            <p className="font-bold uppercase text-sm tracking-wide text-nb-coral">{userError || errorByScope.chats}</p>
+            <button
+              type="button"
+              onClick={() => {
+                clearChatError('chats');
+                clearError();
+              }}
+              className="font-black uppercase text-xs underline underline-offset-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {!debouncedQuery.trim() ? (
           <div className="flex flex-col items-center justify-center py-24 opacity-30 select-none">
             {/* Geometric Illustration */}
@@ -187,7 +194,9 @@ export default function SearchPage() {
                     <NbCard key={userProfile.id} className="p-4 flex items-center gap-4 border-[3px] border-nb-black shadow-[4px_4px_0px_#0D0D0D]">
                       <div className="w-12 h-12 border-2 border-nb-black bg-nb-blue flex items-center justify-center overflow-hidden shrink-0">
                         {userProfile.avatar ? (
-                          <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                          <div className="relative w-full h-full">
+                            <Image src={userProfile.avatar} alt={userProfile.name} fill className="object-cover" />
+                          </div>
                         ) : (
                           <User className="w-8 h-8 text-white" strokeWidth={2.5} />
                         )}
@@ -228,7 +237,7 @@ export default function SearchPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-lg leading-none mb-1">
-                            {highlightText(person.name, debouncedQuery)}
+                            {highlightText(getChatDisplayName(person, user?.id), debouncedQuery)}
                           </p>
                           <p className="font-bold text-sm text-nb-black/60 truncate">
                             {person.lastMessage}
@@ -253,7 +262,7 @@ export default function SearchPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
-                           <p className="font-black text-sm uppercase tracking-wider">{conv.name}</p>
+                           <p className="font-black text-sm uppercase tracking-wider">{getChatDisplayName(conv, user?.id)}</p>
                         </div>
                         <p className="font-bold text-md leading-snug">
                           {highlightText(msg.text, debouncedQuery)}
@@ -274,7 +283,7 @@ export default function SearchPage() {
             )}
 
             {/* Searching Indicator */}
-            {isSearching && (
+            {(isSearching || isUserStoreLoading) && (
               <div className="py-12 text-center">
                 <div className="inline-block w-8 h-8 border-4 border-nb-black border-t-transparent animate-spin"></div>
                 <p className="font-bold text-nb-black/60 uppercase tracking-widest text-sm mt-4">Searching users...</p>

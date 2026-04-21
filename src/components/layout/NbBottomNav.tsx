@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MessageSquare, User, Settings, Bell } from 'lucide-react';
+import { MessageSquare, User, Settings } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 
 export const NbBottomNav = () => {
   const pathname = usePathname();
-  const { conversations } = useChatStore();
+  const { chats } = useChatStore();
 
-  const totalUnread = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
+  const totalUnread = chats.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
 
   const navItems = [
     { href: '/chats', icon: MessageSquare, label: 'Chats', unread: totalUnread },

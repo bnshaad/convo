@@ -18,9 +18,8 @@ interface UserSearchProps {
 export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserProfile[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const { searchUsers } = useUserStore();
-  const { startConversation } = useChatStore();
+  const { searchUsers, error: userError, isLoading, clearError } = useUserStore();
+  const { startConversation, errorByScope, clearChatError } = useChatStore();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -32,14 +31,11 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
         return;
       }
 
-      setIsSearching(true);
       try {
         const foundUsers = await searchUsers(query);
         setResults(foundUsers);
-      } catch (error) {
-        console.error('Search failed:', error);
-      } finally {
-        setIsSearching(false);
+      } catch {
+        setResults([]);
       }
     }, 300);
 
@@ -55,9 +51,7 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
       }
       
       router.push(`/chats/${conversationId}`);
-    } catch (error) {
-      console.error('Failed to start conversation:', error);
-    }
+    } catch {}
   };
 
   return (
@@ -65,7 +59,7 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
       {/* Search Input */}
       <div className="relative group">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-nb-black group-focus-within:text-nb-blue transition-colors">
-          {isSearching ? (
+          {isLoading ? (
             <RefreshCw className="w-5 h-5 animate-spin" />
           ) : (
             <SearchIcon className="w-5 h-5" strokeWidth={3} />
@@ -81,6 +75,22 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
           style={{ borderRadius: 0 }}
         />
       </div>
+
+      {(userError || errorByScope.chats) && (
+        <div className="bg-nb-coral/15 border-[3px] border-nb-coral p-4 flex items-center justify-between gap-3">
+          <p className="font-bold uppercase text-sm tracking-wide text-nb-coral">{userError || errorByScope.chats}</p>
+          <button
+            type="button"
+            onClick={() => {
+              clearChatError('chats');
+              clearError();
+            }}
+            className="font-black uppercase text-xs underline underline-offset-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Results List */}
       <div className="flex flex-col gap-3">
@@ -112,7 +122,7 @@ export const UserSearch = ({ onSelect, className = '' }: UserSearchProps) => {
               </NbButton>
             </NbCard>
           ))
-        ) : query.trim() && !isSearching ? (
+        ) : query.trim() && !isLoading ? (
           <div className="p-8 text-center border-[3px] border-nb-black border-dashed opacity-50">
             <p className="font-bold uppercase tracking-widest text-sm">No users found</p>
           </div>

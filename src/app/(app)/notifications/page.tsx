@@ -1,22 +1,22 @@
 'use client';
 
-import { useState } from 'react';
 import { useChatStore } from '@/store/useChatStore';
 import { NbButton } from '@/components/ui/NbButton';
 import { NbCard } from '@/components/ui/NbCard';
-import { Bell, User, TriangleAlert, Heart, Search } from 'lucide-react';
-import Link from 'next/link';
+import { Bell, User, TriangleAlert, Heart } from 'lucide-react';
 
 export default function NotificationsPage() {
-  const { notifications, clearNotifications } = useChatStore();
-  const [isClearing, setIsClearing] = useState(false);
+  const {
+    notifications,
+    clearNotifications,
+    isNotificationsLoading,
+    isClearingNotifications,
+    errorByScope,
+    clearNotificationsError
+  } = useChatStore();
 
   const handleClearAll = () => {
-    setIsClearing(true);
-    setTimeout(() => {
-      clearNotifications();
-      setIsClearing(false);
-    }, 300);
+    void clearNotifications();
   };
 
   const getIcon = (type: string) => {
@@ -41,6 +41,18 @@ export default function NotificationsPage() {
       </h1>
 
       <div className="flex flex-col gap-6 max-w-md w-full mx-auto">
+        {errorByScope.notifications && (
+          <div className="bg-nb-coral/15 border-[3px] border-nb-coral p-4 flex items-center justify-between gap-3">
+            <p className="font-bold uppercase text-sm tracking-wide text-nb-coral">{errorByScope.notifications}</p>
+            <button
+              type="button"
+              onClick={clearNotificationsError}
+              className="font-black uppercase text-xs underline underline-offset-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         
         {/* Alert Banner - Shows only when there are unread notifications */}
         {notifications.filter(n => !n.type || n.type === 'message').length > 0 && (
@@ -57,16 +69,19 @@ export default function NotificationsPage() {
           <NbButton 
             className="w-full bg-nb-coral text-white border-[3px] border-nb-black shadow-[4px_4px_0px_var(--nb-black)] font-black uppercase py-4"
             onClick={handleClearAll}
+            disabled={isClearingNotifications}
           >
-            Clear All
+            {isClearingNotifications ? 'Clearing...' : 'Clear All'}
           </NbButton>
         )}
 
         {/* Notifications List */}
-        <div 
-          className={`flex flex-col gap-4 transition-opacity duration-300 ${isClearing ? 'opacity-0' : 'opacity-100'}`}
-        >
-          {notifications.length === 0 ? (
+        <div className={`flex flex-col gap-4 transition-opacity duration-300 ${isClearingNotifications ? 'opacity-50' : 'opacity-100'}`}>
+          {isNotificationsLoading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-20 border-[2px] border-nb-black bg-white/60 animate-pulse" />
+            ))
+          ) : notifications.length === 0 ? (
             <div className="py-20 text-center text-nb-black/40 font-bold uppercase tracking-widest">
               No new notifications
             </div>
@@ -111,8 +126,9 @@ export default function NotificationsPage() {
             <NbButton
               className="w-full bg-nb-coral text-white border-[3px] border-nb-black shadow-[4px_4px_0px_var(--nb-black)] font-black uppercase py-4"
               onClick={handleClearAll}
+              disabled={isClearingNotifications}
             >
-              Clear All
+              {isClearingNotifications ? 'Clearing...' : 'Clear All'}
             </NbButton>
          </div>
       )}

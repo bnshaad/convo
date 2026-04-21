@@ -9,16 +9,14 @@ import {
   User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { User } from '@/types/user';
 
-interface User {
-  id: string;
-  name: string;
+interface AuthUser extends User {
   email?: string;
-  avatar?: string;
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   isLoggedIn: boolean;
   isLoading: boolean;
   error: string | null;
@@ -30,12 +28,12 @@ interface AuthState {
   clearError: () => void;
 
   // Internal
-  setUser: (user: User | null) => void;
+  setUser: (user: AuthUser | null) => void;
   setLoading: (loading: boolean) => void;
 }
 
 // Convert Firebase user to our User type
-const formatUser = (firebaseUser: FirebaseUser): User => ({
+const formatUser = (firebaseUser: FirebaseUser): AuthUser => ({
   id: firebaseUser.uid,
   name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
   email: firebaseUser.email || undefined,
@@ -50,7 +48,7 @@ const syncUserProfile = async () => {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       isLoggedIn: false,
       isLoading: true,

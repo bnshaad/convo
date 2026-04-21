@@ -13,7 +13,7 @@ import { useUserStore } from '@/store/useUserStore';
  */
 export const ChatInitializer = () => {
   const { user, isLoggedIn } = useAuthStore();
-  const subscribeToConversations = useChatStore((state) => state.subscribeToConversations);
+  const subscribeToChats = useChatStore((state) => state.subscribeToChats);
   const subscribeToNotifications = useChatStore((state) => state.subscribeToNotifications);
   const createOrUpdateProfile = useUserStore((state) => state.createOrUpdateProfile);
 
@@ -24,14 +24,14 @@ export const ChatInitializer = () => {
     createOrUpdateProfile();
 
     // Subscribe to conversations and notifications
-    const unsubscribeConversations = subscribeToConversations(user.id);
+    const unsubscribeConversations = subscribeToChats(user.id);
     const unsubscribeNotifications = subscribeToNotifications(user.id);
 
     return () => {
       unsubscribeConversations();
       unsubscribeNotifications();
     };
-  }, [isLoggedIn, user?.id, subscribeToConversations, subscribeToNotifications, createOrUpdateProfile]);
+  }, [isLoggedIn, user?.id, subscribeToChats, subscribeToNotifications, createOrUpdateProfile]);
 
   return null;
 };

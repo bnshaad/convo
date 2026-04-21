@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 
 interface AuthGuardProps {
@@ -17,18 +17,15 @@ interface AuthGuardProps {
 export const AuthGuard = ({ children }: AuthGuardProps) => {
   const { isLoggedIn, isLoading } = useAuthStore();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     // Wait until auth initialization is complete
     if (isLoading) return;
 
     if (!isLoggedIn) {
-      console.log('Not logged in, redirecting to welcome page...');
-      // Use replace to prevent back-button loops
-      router.replace('/');
+      router.replace('/login');
     }
-  }, [isLoggedIn, isLoading, router, pathname]);
+  }, [isLoggedIn, isLoading, router]);
 
   // Show nothing or a dedicated loading screen while checking
   if (isLoading) {

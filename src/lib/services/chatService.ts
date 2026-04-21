@@ -14,7 +14,6 @@ import {
   getDocs,
   writeBatch,
   deleteDoc,
-  arrayRemove,
   increment,
   Timestamp,
   DocumentData,
@@ -23,8 +22,50 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { UserProfile } from '@/types/user';
-import { Conversation, Message, Notification } from '@/types/chat';
+import { Chat, Message, Notification, Participant } from '@/types/chat';
+import { User } from '@/types/user';
+
+const isUser = (value: unknown): value is User => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.id === 'string' && typeof candidate.name === 'string';
+};
+
+const mapConversation = (id: string, data: DocumentData, userId: string): Chat => {
+  const users = Array.isArray(data.participants)
+    ? data.participants.filter(isUser)
+    : [];
+
+  return {
+    id,
+    users,
+    name: typeof data.name === 'string' ? data.name : undefined,
+    unreadCount: typeof data.unreadCount?.[userId] === 'number' ? data.unreadCount[userId] : 0,
+    lastMessage: typeof data.lastMessage === 'string' ? data.lastMessage : undefined,
+    timestamp: data.updatedAt
+      ? new Date((data.updatedAt as Timestamp).toMillis()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : '',
+    avatar: typeof data.avatar === 'string'
+      ? data.avatar
+      : typeof data.name === 'string'
+        ? data.name.charAt(0).toUpperCase()
+        : users[0]?.name?.charAt(0).toUpperCase() || '?',
+    updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toMillis() : Date.now()
+  };
+};
+
+const mapMessage = (id: string, chatId: string, data: DocumentData): Message => ({
+  id,
+  chatId,
+  text: data.text || '',
+  senderId: data.senderId || '',
+  createdAt: data.createdAt ? (data.createdAt as Timestamp).toMillis() : Date.now(),
+  read: data.read || false,
+  imageUrl: data.imageUrl,
+  reactions: data.reactions || {},
+  editedAt: data.editedAt ? (data.editedAt as Timestamp).toMillis() : undefined,
+  replyTo: data.replyTo
+});
 
 /**
  * Service to handle all Firestore chat operations.
@@ -33,7 +74,7 @@ import { Conversation, Message, Notification } from '@/types/chat';
 export const chatService = {
   // --- Conversations ---
 
-  subscribeToConversations: (userId: string, callback: (conversations: Conversation[]) => void, onError: (error: Error) => void) => {
+  subscribeToConversations: (userId: string, callback: (chats: Chat[]) => void, onError: (error: Error) => void) => {
     const conversationsRef = collection(db, 'conversations');
     const q = query(
       conversationsRef,
@@ -42,38 +83,34 @@ export const chatService = {
     );
 
     return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-      const conversations: Conversation[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name || 'Unnamed Chat',
-          participantIds: data.participantIds || [],
-          unreadCount: data.unreadCount?.[userId] || 0,
-          lastMessage: data.lastMessage || '',
-          timestamp: data.updatedAt
-            ? new Date((data.updatedAt as Timestamp).toMillis()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-            : '',
-          avatar: data.avatar || data.name?.charAt(0).toUpperCase() || '?',
-          updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toMillis() : Date.now()
-        };
-      });
-      callback(conversations);
+      callback(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data(), userId)));
     }, onError);
   },
 
-  createConversation: async (participants: string[], name: string, creatorId: string, avatar?: string): Promise<string> => {
-    const allParticipants = [...new Set([...participants, creatorId])];
+  createConversation: async (
+    participants: Participant[],
+    name: string,
+    creator: Participant,
+    avatar?: string
+  ): Promise<string> => {
+    const participantMap = new Map<string, Participant>();
+    [creator, ...participants].forEach((participant) => {
+      participantMap.set(participant.id, participant);
+    });
+
+    const allParticipants = Array.from(participantMap.values());
     const unreadCount: Record<string, number> = {};
-    allParticipants.forEach(id => {
+    allParticipants.forEach(({ id }) => {
       unreadCount[id] = 0;
     });
 
     const docRef = await addDoc(collection(db, 'conversations'), {
       name,
-      participantIds: allParticipants,
+      participantIds: allParticipants.map(({ id }) => id),
+      participants: allParticipants,
       unreadCount,
       updatedAt: serverTimestamp(),
-      createdBy: creatorId,
+      createdBy: creator.id,
       ...(avatar && { avatar })
     });
 
@@ -87,21 +124,7 @@ export const chatService = {
     const q = query(messagesRef, orderBy('createdAt', 'asc'), limit(100));
 
     return onSnapshot(q, (snapshot) => {
-      const messages: Message[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          text: data.text || '',
-          senderId: data.senderId || '',
-          createdAt: data.createdAt ? (data.createdAt as Timestamp).toMillis() : Date.now(),
-          read: data.read || false,
-          imageUrl: data.imageUrl,
-          reactions: data.reactions || {},
-          editedAt: data.editedAt ? (data.editedAt as Timestamp).toMillis() : undefined,
-          replyTo: data.replyTo
-        };
-      });
-      callback(messages);
+      callback(snapshot.docs.map((doc) => mapMessage(doc.id, conversationId, doc.data())));
     }, onError);
   },
 
@@ -249,7 +272,11 @@ export const chatService = {
 
   // --- Notifications ---
 
-  subscribeToNotifications: (userId: string, callback: (notifications: Notification[]) => void) => {
+  subscribeToNotifications: (
+    userId: string,
+    callback: (notifications: Notification[]) => void,
+    onError?: (error: Error) => void
+  ) => {
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', userId),
@@ -268,11 +295,12 @@ export const chatService = {
           timestamp: data.timestamp || '',
           createdAt: data.createdAt ? (data.createdAt as Timestamp).toMillis() : Date.now(),
           userId: data.userId,
-          read: data.read || false
+          read: data.read || false,
+          conversationId: data.conversationId
         };
       });
       callback(notifications);
-    });
+    }, onError);
   },
 
   clearNotifications: async (userId: string) => {
