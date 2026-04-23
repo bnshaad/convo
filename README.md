@@ -1,27 +1,30 @@
-# Daily Challenge App
+---
 
-A web app where users solve 10 questions daily, track their score, and share results.
+# 💬 Convo (Chat App)
+
+# Convo
+
+A real-time chat app with live messaging and user presence.
 
 ## Live
-[https://your-live-link.com](https://daily-challenge-app-three.vercel.app/)
+https://convo-uo9z.vercel.app/
 
 ## Features
-- Daily questions
-- Score tracking
-- Shareable results
-- Login with email/Google
-- Works on mobile and desktop
+- Real-time messaging
+- Typing indicators
+- Online/offline status
+- Authentication
+- Responsive UI
 
 ## Tech Stack
-- HTML, CSS, JavaScript
-- Node.js, Express
-- Supabase (PostgreSQL)
+- Next.js
+- Firebase Firestore
 - Firebase Auth
 - Vercel
 
 ## Run Locally
 ```bash
-git clone https://github.com/your-username/daily-challenge-app.git
-cd daily-challenge-app
+git clone https://github.com/your-username/convo.git
+cd convo
 npm install
-npm start
+npm run dev
